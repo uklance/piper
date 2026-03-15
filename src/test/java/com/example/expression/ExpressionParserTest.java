@@ -90,13 +90,15 @@ class ExpressionParserTest {
 
     @Test
     void testExpression() throws Exception {
-        assertThat(eval("bean.number * 4 + bean.number2")).isEqualTo(23.0);
+        assertThat(eval("bean.number * 4 + bean.number2")).isEqualTo(23D);
         assertThat(eval( "bean.name | uppercase")).isEqualTo("JOHN");
         assertThat(eval( "bean.flag1 ? 'Y' : 'N'")).isEqualTo("Y");
         assertThat(eval( "bean.flag2 ? 'Y' : 'N'")).isEqualTo("N");
         assertThat(eval( "bean.list[1]")).isEqualTo("B");
         assertThat(eval( "bean.localDate | format('d/M/yyyy')")).isEqualTo("3/12/2007");
         assertThat(eval( "bean.localDate | format('yyyy-MM-dd')")).isEqualTo("2007-12-03");
+        assertThat(eval( "4 * 3 + 10")).isEqualTo(22D);
+        assertThat(eval( "10 + 4 * 3")).isEqualTo(22D);
     }
 
     Object eval(String expression) throws Exception {
