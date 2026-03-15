@@ -1,6 +1,6 @@
 package com.example.expression;
 
-public class VariableNode implements Node{
+public class VariableNode implements Node {
 
     private final String name;
 

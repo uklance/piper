@@ -1,20 +1,24 @@
 package com.example.expression;
 
-import java.util.*;
+import com.example.glue.GlueRegistry;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class DefaultExpressionContext implements ExpressionContext {
-
     private final Map<String,Object> vars=new HashMap<>();
 
     private final MapperRegistry mapperRegistry;
     private final ConverterRegistry converterRegistry;
+    private final GlueRegistry glueRegistry;
 
     public DefaultExpressionContext(
-        MapperRegistry mapperRegistry,
-        ConverterRegistry converterRegistry
-    ){
+            MapperRegistry mapperRegistry,
+            ConverterRegistry converterRegistry,
+            GlueRegistry glueRegistry){
         this.mapperRegistry=mapperRegistry;
         this.converterRegistry=converterRegistry;
+        this.glueRegistry = glueRegistry;
     }
 
     public void set(String name,Object value){
@@ -30,7 +34,6 @@ public class DefaultExpressionContext implements ExpressionContext {
     }
 
     public boolean isTruthy(Object value) {
-        System.out.println("IsTruthy " + value);
         if (value==null) return false;
         if (value instanceof Boolean b) return b;
         if (value instanceof Number n) return n.doubleValue() != 0;
@@ -38,7 +41,22 @@ public class DefaultExpressionContext implements ExpressionContext {
         return true;
     }
 
-    public Object applyMapper(Object value,String mapperName,List<Object> args){
+    public Object applyMapper(Object value,String mapperName, Object[] args){
         return mapperRegistry.apply(value,mapperName,args);
+    }
+
+    @Override
+    public Object get(Object target, String name) throws Exception {
+        return glueRegistry.get(target.getClass()).get(target, name);
+    }
+
+    @Override
+    public Object get(Object target, int index) throws Exception {
+        return glueRegistry.get(target.getClass()).get(target, index);
+    }
+
+    @Override
+    public Object invoke(Object target, String name, Object[] args) throws Exception {
+        return glueRegistry.get(target.getClass()).invoke(target, name, args);
     }
 }

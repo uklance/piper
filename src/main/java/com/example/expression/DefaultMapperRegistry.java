@@ -1,37 +1,29 @@
 package com.example.expression;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DefaultMapperRegistry implements MapperRegistry {
-
     private final Map<Class<?>, Map<String, Mapper<?>>> registry = new HashMap<>();
 
     public <T> void register(Class<T> type, String name, Mapper<T> mapper) {
-
         registry
             .computeIfAbsent(type,k->new HashMap<>())
             .put(name,mapper);
     }
 
-    public Mapper<?> get(Class<?> type, String name) {
-
+    public Mapper<?> find(Class<?> type, String name) {
         Map<String,Mapper<?>> m = registry.get(type);
-
         if (m == null) return null;
-
         return m.get(name);
     }
 
-    public Object apply(Object value, String mapperName, List<Object> args) {
-
+    public Object apply(Object value, String mapperName, Object[] args) {
         if (value == null) return null;
-
-        Mapper mapper = get(value.getClass(),mapperName);
-
+        Mapper mapper = find(value.getClass(), mapperName);
         if (mapper == null) {
-            throw new RuntimeException("Mapper not found: "+mapperName);
+            throw new RuntimeException("Mapper not found: " + mapperName);
         }
-
         return mapper.apply(value,args);
     }
 }

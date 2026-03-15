@@ -1,7 +1,6 @@
 package com.example.expression;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class ExpressionParser {
@@ -118,9 +117,9 @@ public class ExpressionParser {
                 lexer.expect(TokenType.RBRACKET);
 
                 return ctx->{
-                    List<?> list=ctx.convert(left.eval(ctx), List.class);
+                    Object target = left.eval(ctx);
                     Integer index=ctx.convert(indexNode.eval(ctx), Integer.class);
-                    return list.get(index);
+                    return ctx.get(target, index);
                 };
             }
 
@@ -150,12 +149,10 @@ public class ExpressionParser {
 
                 return ctx -> {
                     // evaluate arguments
-                    List<Object> args = new ArrayList<>(argNodes.size());
-                    for (Node n : argNodes) {
-                        args.add(n.eval(ctx));
+                    Object[] args = new Object[argNodes.size()];
+                    for (int i = 0; i < argNodes.size(); ++i) {
+                        args[i] = argNodes.get(i).eval(ctx);
                     }
-
-                    // call mapper with args
                     return ctx.applyMapper(left.eval(ctx), name, args);
                 };
             }
@@ -197,12 +194,7 @@ public class ExpressionParser {
                 values[i]=args.get(i).eval(ctx);
 
             try{
-
-                java.lang.reflect.Method m=
-                    MethodCache.lookup(obj.getClass(),name,values.length);
-
-                return m.invoke(obj,values);
-
+                return ctx.invoke(obj, name, values);
             }catch(Exception e){
                 throw new RuntimeException(e);
             }
