@@ -9,107 +9,6 @@ import java.util.function.Predicate;
 
 public class TemplateParser {
 
-    enum TokenType {
-        TEXT,
-        INTERPOLATION,
-        DIRECTIVE_START,
-        DIRECTIVE_END,
-        EOF
-    }
-
-    private static class Token {
-        final TokenType type;
-        final String text;
-
-        Token(TokenType type, String text) {
-            this.type = type;
-            this.text = text;
-        }
-    }
-
-    private static class Lexer {
-        private final String s;
-        private int pos;
-        private Token next;
-
-        Lexer(String s) {
-            this.s = s;
-            this.next = parseNext();
-        }
-
-        Token peek() {
-            return next;
-        }
-
-        TokenType peekType() {
-            return next.type;
-        }
-
-        Token next() {
-            Token t = next;
-            next = parseNext();
-            return t;
-        }
-
-        Token next(TokenType expected) {
-            if (next.type != expected) {
-                throw new RuntimeException("Expected " + expected + " but got " + next.type);
-            }
-            return next();
-        }
-
-        private boolean startsWith(String str) {
-            return s.startsWith(str, pos);
-        }
-
-        private Token parseNext() {
-            if (pos >= s.length()) {
-                return new Token(TokenType.EOF, "");
-            }
-
-            // -------- INTERPOLATION --------
-            if (startsWith("${")) {
-                int start = pos + 2;
-                int end = s.indexOf('}', start);
-                if (end < 0) throw new RuntimeException("Unclosed interpolation");
-
-                String expr = s.substring(start, end).trim();
-                pos = end + 1;
-                return new Token(TokenType.INTERPOLATION, expr);
-            }
-
-            // -------- DIRECTIVE END (</#...>) --------
-            if (startsWith("<#")) {
-                int start = pos + 2;
-                int end = s.indexOf('>', start);
-                if (end < 0) throw new RuntimeException("Unclosed directive start");
-
-                String name = s.substring(start, end).trim();
-                pos = end + 1;
-                return new Token(TokenType.DIRECTIVE_START, name);
-            }
-
-            // -------- DIRECTIVE END (</#...>) --------
-            if (startsWith("</#")) {
-                int start = pos + 3;
-                int end = s.indexOf('>', start);
-                if (end < 0) throw new RuntimeException("Unclosed directive end");
-
-                String name = s.substring(start, end).trim();
-                pos = end + 1;
-                return new Token(TokenType.DIRECTIVE_END, name);
-            }
-
-            // -------- TEXT --------
-            int start = pos;
-            while (pos < s.length() && !startsWith("${") && !startsWith("<#") && !startsWith("</#")) {
-                pos++;
-            }
-
-            return new Token(TokenType.TEXT, s.substring(start, pos));
-        }
-    }
-
     private final ExpressionParser expressionParser;
 
     public TemplateParser(ExpressionParser expressionParser) {
@@ -117,7 +16,7 @@ public class TemplateParser {
     }
 
     public Template parse(String template) {
-        Lexer lexer = new Lexer(template);
+        TemplateLexer lexer = new TemplateLexer(template);
 
         List<Node> nodes = parseNodes(lexer, t -> false);
 
@@ -132,10 +31,10 @@ public class TemplateParser {
         };
     }
 
-    private List<Node> parseNodes(Lexer lexer, Predicate<Token> stopPredicate) {
+    private List<Node> parseNodes(TemplateLexer lexer, Predicate<TemplateToken> stopPredicate) {
         List<Node> nodes = new ArrayList<>();
 
-        for (Token token = lexer.peek(); !(token.type == TokenType.EOF || stopPredicate.test(token)); token = lexer.peek()) {
+        for (TemplateToken token = lexer.peek(); !(token.type == TokenType.EOF || stopPredicate.test(token)); token = lexer.peek()) {
             switch (token.type) {
                 case TEXT:
                     nodes.add(parseText(lexer));
@@ -171,12 +70,12 @@ public class TemplateParser {
         return nodes;
     }
 
-    private Node parseText(Lexer lexer) {
+    private Node parseText(TemplateLexer lexer) {
         String text = lexer.next(TokenType.TEXT).text;
         return (context, sink) -> sink.accept(text);
     }
 
-    private Node parseInterpolation(Lexer lexer) {
+    private Node parseInterpolation(TemplateLexer lexer) {
         String exprText = lexer.next(TokenType.INTERPOLATION).text;
 
         if (exprText.isEmpty()) {
@@ -191,15 +90,15 @@ public class TemplateParser {
         };
     }
 
-    private boolean isDirectiveStart(Token token, String name) {
+    private boolean isDirectiveStart(TemplateToken token, String name) {
         return token.type == TokenType.DIRECTIVE_START && name.equals(token.text);
     }
 
-    private boolean isDirectiveEnd(Token token, String name) {
+    private boolean isDirectiveEnd(TemplateToken token, String name) {
         return token.type == TokenType.DIRECTIVE_END && name.equals(token.text);
     }
 
-    private Node parseIf(Lexer lexer, String conditionText) {
+    private Node parseIf(TemplateLexer lexer, String conditionText) {
         lexer.next(TokenType.DIRECTIVE_START);
         Expression condExpr = expressionParser.parse(conditionText);
 
@@ -228,7 +127,7 @@ public class TemplateParser {
         };
     }
 
-    private Node parseList(Lexer lexer, String header) {
+    private Node parseList(TemplateLexer lexer, String header) {
         lexer.next(TokenType.DIRECTIVE_START);
         int asIndex = header.indexOf(" as ");
         if (asIndex < 0) {
