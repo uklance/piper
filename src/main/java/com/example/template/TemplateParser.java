@@ -56,6 +56,9 @@ public class TemplateParser {
                         case "list":
                             nodes.add(parseList(lexer, args));
                             break;
+                        case "assign":
+                            nodes.add(parseAssign(lexer, args));
+                            break;
                         default:
                             throw new RuntimeException("Unknown directive: " + name);
                     }
@@ -90,17 +93,17 @@ public class TemplateParser {
         };
     }
 
-    private boolean isDirectiveStart(TemplateToken token, String name) {
-        return token.type == TokenType.DIRECTIVE_START && name.equals(token.text);
+    private boolean isDirectiveStart(TemplateToken token, String text) {
+        return token.type == TokenType.DIRECTIVE_START && text.equals(token.text);
     }
 
-    private boolean isDirectiveEnd(TemplateToken token, String name) {
-        return token.type == TokenType.DIRECTIVE_END && name.equals(token.text);
+    private boolean isDirectiveEnd(TemplateToken token, String text) {
+        return token.type == TokenType.DIRECTIVE_END && text.equals(token.text);
     }
 
-    private Node parseIf(TemplateLexer lexer, String conditionText) {
+    private Node parseIf(TemplateLexer lexer, String args) {
         lexer.next(TokenType.DIRECTIVE_START);
-        Expression condExpr = expressionParser.parse(conditionText);
+        Expression condExpr = expressionParser.parse(args);
 
         List<Node> thenNodes = parseNodes(lexer, t ->
                 isDirectiveStart(t, "else") || isDirectiveEnd(t, "if")
@@ -127,15 +130,15 @@ public class TemplateParser {
         };
     }
 
-    private Node parseList(TemplateLexer lexer, String header) {
+    private Node parseList(TemplateLexer lexer, String args) {
         lexer.next(TokenType.DIRECTIVE_START);
-        int asIndex = header.indexOf(" as ");
+        int asIndex = args.indexOf(" as ");
         if (asIndex < 0) {
-            throw new RuntimeException("Invalid list header: " + header);
+            throw new RuntimeException("Invalid list args: " + args);
         }
 
-        String listExprText = header.substring(0, asIndex).trim();
-        String varName = header.substring(asIndex + 4).trim();
+        String listExprText = args.substring(0, asIndex).trim();
+        String varName = args.substring(asIndex + 4).trim();
 
         Expression listExpr = expressionParser.parse(listExprText);
 
@@ -151,5 +154,17 @@ public class TemplateParser {
                 }
             }
         };
+    }
+
+    private Node parseAssign(TemplateLexer lexer, String args) {
+        lexer.next(TokenType.DIRECTIVE_START);
+        int eqIndex = args.indexOf("=");
+        if (eqIndex < 0) {
+            throw new RuntimeException("Invalid assign args: " + args);
+        }
+        String varName = args.substring(0, eqIndex).trim();
+        String exprText = args.substring(eqIndex + 1).trim();
+        Expression expr = expressionParser.parse(exprText);
+        return (context, sink) -> context.set(varName, expr.eval(context));
     }
 }

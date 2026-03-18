@@ -130,4 +130,16 @@ class TemplateParserTest {
                 .contains("CCA,CCB,CCC");
     }
 
+    @Test
+    public void testAssign() throws Exception {
+        Template template = templateParser.parse("""
+            <#assign foo='abc'>
+            foo is ${foo}
+            """
+        );
+
+        String result = template.apply(context);
+        assertThat(result.trim()).isEqualTo("foo is abc");
+    }
+
 }
