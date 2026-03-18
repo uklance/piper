@@ -4,163 +4,109 @@ import com.example.expression.Expression;
 import com.example.expression.ExpressionParser;
 
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class TemplateParser {
 
     enum TokenType {
-        TEXT, INTERP_START, INTERP_END,
-        IF_START, LIST_START, ELSE_TAG, IF_END, LIST_END,
-        TAG_END,
+        TEXT,
+        INTERPOLATION,
+        DIRECTIVE_START,
+        DIRECTIVE_END,
         EOF
-    }
-
-    enum Mode {
-        DIRECTIVE_OPEN, INTERP;
     }
 
     private static class Token {
         final TokenType type;
         final String text;
-        Token(TokenType t, String txt) { type = t; text = txt; }
+
+        Token(TokenType type, String text) {
+            this.type = type;
+            this.text = text;
+        }
     }
 
     private static class Lexer {
         private final String s;
         private int pos;
         private Token next;
-        private Deque<Mode> modes = new LinkedList<>();
 
         Lexer(String s) {
             this.s = s;
             this.next = parseNext();
         }
 
-        public TokenType peekType() {
+        Token peek() {
+            return next;
+        }
+
+        TokenType peekType() {
             return next.type;
         }
 
-        public Mode peekMode() {
-            return modes.peek();
-        }
-
-        public void popMode(Mode expected) {
-            if (peekMode() != expected) {
-                throw new RuntimeException("Expected " + expected + " but got " + peekMode());
-            }
-            modes.pop();
-        }
-
-        public void pushMode(Mode mode) {
-            modes.push(mode);
-        }
-
-        public Token next() {
-            Token current = next;
+        Token next() {
+            Token t = next;
             next = parseNext();
-            return current;
+            return t;
         }
 
-        public Token next(TokenType expected) {
-            if (peekType() != expected) {
-                throw new RuntimeException("Expected " + expected + " but got " + peekType());
+        Token next(TokenType expected) {
+            if (next.type != expected) {
+                throw new RuntimeException("Expected " + expected + " but got " + next.type);
             }
             return next();
         }
 
-        private boolean startsWith(String prefix) {
-            return s.startsWith(prefix, pos);
-        }
-
-        private boolean startsWith(char prefix) {
-            return s.charAt(pos) == prefix;
+        private boolean startsWith(String str) {
+            return s.startsWith(str, pos);
         }
 
         private Token parseNext() {
-            //skipWhitespace();
+            if (pos >= s.length()) {
+                return new Token(TokenType.EOF, "");
+            }
 
-            if (pos >= s.length()) return new Token(TokenType.EOF, "");
-            if (startsWith("</#")) {
-                if (startsWith("</#list>")) {
-                    pos += 8;
-                    return new Token(TokenType.LIST_END, "</#list>");
-                }
-                if (startsWith("</#if>")) {
-                    pos += 6;
-                    return new Token(TokenType.IF_END, "</#if>");
-                }
-                throw new RuntimeException("Unexpected close tag");
-            }
-            if (startsWith("<#")) {
-                if (startsWith("<#else>")) {
-                    pos += 7;
-                    return new Token(TokenType.ELSE_TAG, "<#else>");
-                }
-                if (startsWith("<#list")) {
-                    pos += 6;
-                    pushMode(Mode.DIRECTIVE_OPEN);
-                    return new Token(TokenType.LIST_START, "<#list");
-                }
-                if (startsWith("<#if")) {
-                    pos += 4;
-                    pushMode(Mode.DIRECTIVE_OPEN);
-                    return new Token(TokenType.IF_START, "<#if");
-                }
-                throw new RuntimeException("Unexpected open tag");
-            }
+            // -------- INTERPOLATION --------
             if (startsWith("${")) {
-                pos += 2;
-                pushMode(Mode.INTERP);
-                return new Token(TokenType.INTERP_START, "${");
-            }
-            if (startsWith("}")) {
-                pos++;
-                popMode(Mode.INTERP);
-                return new Token(TokenType.INTERP_END, "}");
-            }
-            if (startsWith('>')) {
-                pos++;
-                popMode(Mode.DIRECTIVE_OPEN);
-                return new Token(TokenType.TAG_END, ">");
+                int start = pos + 2;
+                int end = s.indexOf('}', start);
+                if (end < 0) throw new RuntimeException("Unclosed interpolation");
+
+                String expr = s.substring(start, end).trim();
+                pos = end + 1;
+                return new Token(TokenType.INTERPOLATION, expr);
             }
 
+            // -------- DIRECTIVE END (</#...>) --------
+            if (startsWith("<#")) {
+                int start = pos + 2;
+                int end = s.indexOf('>', start);
+                if (end < 0) throw new RuntimeException("Unclosed directive start");
+
+                String name = s.substring(start, end).trim();
+                pos = end + 1;
+                return new Token(TokenType.DIRECTIVE_START, name);
+            }
+
+            // -------- DIRECTIVE END (</#...>) --------
+            if (startsWith("</#")) {
+                int start = pos + 3;
+                int end = s.indexOf('>', start);
+                if (end < 0) throw new RuntimeException("Unclosed directive end");
+
+                String name = s.substring(start, end).trim();
+                pos = end + 1;
+                return new Token(TokenType.DIRECTIVE_END, name);
+            }
+
+            // -------- TEXT --------
             int start = pos;
-            if (peekMode() == Mode.INTERP) {
-                while (pos < s.length()) {
-                    if (startsWith('}')) {
-                        break;
-                    }
-                    pos++;
-                }
-            } else if (peekMode() == Mode.DIRECTIVE_OPEN) {
-                while (pos < s.length()) {
-                    if (startsWith('>')) {
-                        break;
-                    }
-                    pos++;
-                }
-            } else {
-                while (pos < s.length()) {
-                    if (startsWith("</#") ||
-                            startsWith("<#") ||
-                            startsWith("${") ||
-                            startsWith('}') ||
-                            startsWith('>')) {
-                        break;
-                    }
-                    pos++;
-                }
-            }
-            String text = s.substring(start, pos);
-            return new Token(TokenType.TEXT, text);
-        }
-
-        private void skipWhitespace() {
-            while (pos < s.length() && Character.isWhitespace(s.charAt(pos))) {
+            while (pos < s.length() && !startsWith("${") && !startsWith("<#") && !startsWith("</#")) {
                 pos++;
             }
+
+            return new Token(TokenType.TEXT, s.substring(start, pos));
         }
     }
 
@@ -172,10 +118,13 @@ public class TemplateParser {
 
     public Template parse(String template) {
         Lexer lexer = new Lexer(template);
-        List<Node> nodes = parseNodes(lexer);
+
+        List<Node> nodes = parseNodes(lexer, t -> false);
+
         if (lexer.peekType() != TokenType.EOF) {
             throw new RuntimeException("Unexpected token after parsing: " + lexer.peekType());
         }
+
         return (context, sink) -> {
             for (Node node : nodes) {
                 node.render(context, sink);
@@ -183,131 +132,123 @@ public class TemplateParser {
         };
     }
 
-    private List<Node> parseNodes(Lexer lexer) {
+    private List<Node> parseNodes(Lexer lexer, Predicate<Token> stopPredicate) {
         List<Node> nodes = new ArrayList<>();
 
-        while (lexer.peekType() != TokenType.EOF &&
-                lexer.peekType() != TokenType.ELSE_TAG &&
-                lexer.peekType() != TokenType.IF_END &&
-                lexer.peekType() != TokenType.LIST_END) {
-
-            switch (lexer.peekType()) {
+        for (Token token = lexer.peek(); !(token.type == TokenType.EOF || stopPredicate.test(token)); token = lexer.peek()) {
+            switch (token.type) {
                 case TEXT:
                     nodes.add(parseText(lexer));
                     break;
 
-                case INTERP_START:
+                case INTERPOLATION:
                     nodes.add(parseInterpolation(lexer));
                     break;
 
-                case IF_START:
-                    nodes.add(parseIf(lexer));
-                    break;
+                case DIRECTIVE_START: {
+                    int spaceIndex = token.text.indexOf(' ');
+                    String name = spaceIndex < 0 ? token.text : token.text.substring(0, spaceIndex);
+                    String args = spaceIndex < 0 ? "" : token.text.substring(spaceIndex + 1).trim();
 
-                case LIST_START:
-                    nodes.add(parseList(lexer));
+                    switch (name) {
+                        case "if":
+                            nodes.add(parseIf(lexer, args));
+                            break;
+                        case "list":
+                            nodes.add(parseList(lexer, args));
+                            break;
+                        default:
+                            throw new RuntimeException("Unknown directive: " + name);
+                    }
                     break;
+                }
 
                 default:
-                    throw new RuntimeException("Unexpected NodeType: " + lexer.peekType());
+                    throw new RuntimeException(String.format("Unexpected token: %s[%s]", token.type, token.text));
             }
         }
+
         return nodes;
     }
 
     private Node parseText(Lexer lexer) {
-        Token token = lexer.next(TokenType.TEXT);
-        String text = token.text;
+        String text = lexer.next(TokenType.TEXT).text;
         return (context, sink) -> sink.accept(text);
     }
 
     private Node parseInterpolation(Lexer lexer) {
-        lexer.next(TokenType.INTERP_START);
+        String exprText = lexer.next(TokenType.INTERPOLATION).text;
 
-        StringBuilder exprText = new StringBuilder();
-        while (lexer.peekType() != TokenType.INTERP_END && lexer.peekType() != TokenType.EOF) {
-            exprText.append(lexer.next(TokenType.TEXT).text);
-        }
-        lexer.next(TokenType.INTERP_END);
-
-        String trimmed = exprText.toString().trim();
-        if (trimmed.isEmpty()) {
+        if (exprText.isEmpty()) {
             throw new RuntimeException("Empty interpolation expression");
         }
-        Expression expr = expressionParser.parse(trimmed);
+
+        Expression expr = expressionParser.parse(exprText);
+
         return (context, sink) -> {
             Object result = expr.eval(context);
             sink.accept(context.convert(result, String.class));
         };
     }
 
-    private Node parseIf(Lexer lexer) {
-        lexer.next(TokenType.IF_START);
+    private boolean isDirectiveStart(Token token, String name) {
+        return token.type == TokenType.DIRECTIVE_START && name.equals(token.text);
+    }
 
-        StringBuilder condText = new StringBuilder();
-        while (lexer.peekType() != TokenType.TAG_END && lexer.peekType() != TokenType.EOF) {
-            Token t = lexer.next();
-            condText.append(t.text);
-        }
-        lexer.next(TokenType.TAG_END);
+    private boolean isDirectiveEnd(Token token, String name) {
+        return token.type == TokenType.DIRECTIVE_END && name.equals(token.text);
+    }
 
-        Expression condExpr = expressionParser.parse(condText.toString().trim());
-        List<Node> thenNodes = parseNodes(lexer);
+    private Node parseIf(Lexer lexer, String conditionText) {
+        lexer.next(TokenType.DIRECTIVE_START);
+        Expression condExpr = expressionParser.parse(conditionText);
+
+        List<Node> thenNodes = parseNodes(lexer, t ->
+                isDirectiveStart(t, "else") || isDirectiveEnd(t, "if")
+        );
+
         List<Node> elseNodes;
-        if (lexer.peekType() == TokenType.ELSE_TAG) {
-            lexer.next(TokenType.ELSE_TAG);
-            elseNodes = parseNodes(lexer);
+        if (lexer.peekType() == TokenType.DIRECTIVE_START) {
+            lexer.next(TokenType.DIRECTIVE_START); // consume <#else>
+            elseNodes = parseNodes(lexer, t -> isDirectiveEnd(t, "if"));
         } else {
             elseNodes = null;
         }
-        lexer.next(TokenType.IF_END);
+
+        lexer.next(TokenType.DIRECTIVE_END); // consume </#if>
+
         return (context, sink) -> {
             boolean cond = context.isTruthy(condExpr.eval(context));
-            if (cond) {
-                for (Node thenNode : thenNodes) {
-                    thenNode.render(context, sink);
-                }
-            } else if (elseNodes != null){
-                for (Node elseNode : elseNodes) {
-                    elseNode.render(context, sink);
+            List<Node> chosen = cond ? thenNodes : elseNodes;
+            if (chosen != null) {
+                for (Node n : chosen) {
+                    n.render(context, sink);
                 }
             }
         };
     }
 
-    private Node parseList(Lexer lexer) {
-        lexer.next(TokenType.LIST_START);
-
-        StringBuilder headerText = new StringBuilder();
-        while (lexer.peekType() != TokenType.TAG_END && lexer.peekType() != TokenType.EOF) {
-            headerText.append(lexer.next().text);
-        }
-
-        lexer.next(TokenType.TAG_END);
-
-        String header = headerText.toString().trim();
-        int asIdx = header.indexOf(" as ");
-        if (asIdx < 0) {
-            throw new RuntimeException("Invalid list header (missing 'as'): " + header);
-        }
-
-        String listExprText = header.substring(0, asIdx).trim();
-        String varName = header.substring(asIdx + 4).trim();
-
-        if (listExprText.isEmpty() || varName.isEmpty()) {
+    private Node parseList(Lexer lexer, String header) {
+        lexer.next(TokenType.DIRECTIVE_START);
+        int asIndex = header.indexOf(" as ");
+        if (asIndex < 0) {
             throw new RuntimeException("Invalid list header: " + header);
         }
 
+        String listExprText = header.substring(0, asIndex).trim();
+        String varName = header.substring(asIndex + 4).trim();
+
         Expression listExpr = expressionParser.parse(listExprText);
-        List<Node> body = parseNodes(lexer);
-        lexer.next(TokenType.LIST_END);
+
+        List<Node> body = parseNodes(lexer, t -> isDirectiveEnd(t, "list"));
+        lexer.next(TokenType.DIRECTIVE_END);
 
         return (context, sink) -> {
-            Iterable list = listExpr.eval(context, Iterable.class);
-            for (Object var : list) {
-                context.set(varName, var);
-                for (Node node : body) {
-                    node.render(context, sink);
+            Iterable<?> list = listExpr.eval(context, Iterable.class);
+            for (Object item : list) {
+                context.set(varName, item);
+                for (Node n : body) {
+                    n.render(context, sink);
                 }
             }
         };
