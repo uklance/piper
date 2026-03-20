@@ -140,17 +140,16 @@ public class TemplateParser {
         };
     }
 
+    private static final Pattern LIST_PATTERN = Pattern.compile("\\s*(.+?)\\s* as \\s*(.+?)\\s*");
     private Node parseList(TemplateLexer lexer, String args) throws IOException {
         lexer.next(TokenType.DIRECTIVE_START);
-        int asIndex = args.indexOf(" as ");
-        if (asIndex < 0) {
+        Matcher matcher = LIST_PATTERN.matcher(args);
+        if (!matcher.matches()) {
             throw new RuntimeException("Invalid list args: " + args);
         }
 
-        String listExprText = args.substring(0, asIndex).trim();
-        String varName = args.substring(asIndex + 4).trim();
-
-        Expression listExpr = expressionParser.parse(listExprText);
+        Expression listExpr = expressionParser.parse(matcher.group(1));
+        String varName = matcher.group(2);
 
         List<Node> body = parseNodes(lexer, t -> isDirectiveEnd(t, "list"));
         lexer.next(TokenType.DIRECTIVE_END);
@@ -166,15 +165,15 @@ public class TemplateParser {
         };
     }
 
+    private static final Pattern ASSIGN_PATTERN = Pattern.compile("\\s*(.+?)\\s*=\\s*(.+?)\\s*");
     private Node parseAssign(TemplateLexer lexer, String args) {
         lexer.next(TokenType.DIRECTIVE_START);
-        int eqIndex = args.indexOf("=");
-        if (eqIndex < 0) {
+        Matcher matcher = ASSIGN_PATTERN.matcher(args);
+        if (!matcher.matches()) {
             throw new RuntimeException("Invalid assign args: " + args);
         }
-        String varName = args.substring(0, eqIndex).trim();
-        String exprText = args.substring(eqIndex + 1).trim();
-        Expression expr = expressionParser.parse(exprText);
+        String varName = matcher.group(1);
+        Expression expr = expressionParser.parse(matcher.group(2));
         return (context, sink) -> context.set(varName, expr.eval(context));
     }
 
