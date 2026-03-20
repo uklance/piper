@@ -43,11 +43,11 @@ public class ExpressionParser {
                 return ctx->t.text;
 
             case IDENTIFIER:
-                return new VariableNode(t.text);
+                return ctx -> ctx.get(t.text);
 
             case LPAREN:{
                 Node n=parseExpression(lexer,0);
-                lexer.expect(TokenType.RPAREN);
+                lexer.next(TokenType.RPAREN);
                 return n;
             }
 
@@ -84,7 +84,7 @@ public class ExpressionParser {
 
             case DOT:{
 
-                String name=lexer.expect(TokenType.IDENTIFIER).text;
+                String name=lexer.next(TokenType.IDENTIFIER).text;
 
                 if(lexer.peek().type==TokenType.LPAREN)
                     return parseMethodCall(lexer,left,name,false);
@@ -94,7 +94,7 @@ public class ExpressionParser {
 
             case SAFE_DOT:{
 
-                String name=lexer.expect(TokenType.IDENTIFIER).text;
+                String name=lexer.next(TokenType.IDENTIFIER).text;
 
                 if(lexer.peek().type==TokenType.LPAREN)
                     return parseMethodCall(lexer,left,name,true);
@@ -105,7 +105,7 @@ public class ExpressionParser {
             case QUESTION:{
 
                 Node t=parseExpression(lexer,0);
-                lexer.expect(TokenType.COLON);
+                lexer.next(TokenType.COLON);
                 Node f=parseExpression(lexer,0);
 
                 return ctx->ctx.isTruthy(left.eval(ctx))?t.eval(ctx):f.eval(ctx);
@@ -114,7 +114,7 @@ public class ExpressionParser {
             case LBRACKET:{
 
                 Node indexNode=parseExpression(lexer,0);
-                lexer.expect(TokenType.RBRACKET);
+                lexer.next(TokenType.RBRACKET);
 
                 return ctx->{
                     Object target = left.eval(ctx);
@@ -125,7 +125,7 @@ public class ExpressionParser {
 
             case PIPE: {
 
-                String name = lexer.expect(TokenType.IDENTIFIER).text;
+                String name = lexer.next(TokenType.IDENTIFIER).text;
 
                 List<Node> argNodes = new ArrayList<>();
 
@@ -144,7 +144,7 @@ public class ExpressionParser {
                         }
                     }
 
-                    lexer.expect(TokenType.RPAREN); // consume ')'
+                    lexer.next(TokenType.RPAREN); // consume ')'
                 }
 
                 return ctx -> {
@@ -163,7 +163,7 @@ public class ExpressionParser {
 
     private Node parseMethodCall(Lexer lexer,Node target,String name,boolean safe){
 
-        lexer.expect(TokenType.LPAREN);
+        lexer.next(TokenType.LPAREN);
 
         List<Node> args=new ArrayList<>();
 
@@ -177,7 +177,7 @@ public class ExpressionParser {
             }
         }
 
-        lexer.expect(TokenType.RPAREN);
+        lexer.next(TokenType.RPAREN);
 
         return ctx->{
 

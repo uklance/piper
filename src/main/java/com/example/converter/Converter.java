@@ -1,4 +1,4 @@
-package com.example.expression;
+package com.example.converter;
 
 public interface Converter<F,T> {
 

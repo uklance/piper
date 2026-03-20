@@ -1,12 +1,25 @@
 package com.example.template;
 
+import java.io.IOException;
+import java.io.Reader;
+
 public class TemplateLexer {
-    private final String s;
+    private final String template;
     private int pos;
     private TemplateToken next;
 
-    public TemplateLexer(String s) {
-        this.s = s;
+    public TemplateLexer(Reader reader) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        char[] buffer = new char[8192]; // 8KB
+        int n;
+        while ((n = reader.read(buffer)) != -1) {
+            builder.append(buffer, 0, n);
+        }
+        template = builder.toString();
+    }
+
+    public TemplateLexer(String template) {
+        this.template = template;
         this.next = parseNext();
     }
 
@@ -32,21 +45,21 @@ public class TemplateLexer {
     }
 
     private boolean startsWith(String str) {
-        return s.startsWith(str, pos);
+        return template.startsWith(str, pos);
     }
 
     private TemplateToken parseNext() {
-        if (pos >= s.length()) {
+        if (pos >= template.length()) {
             return new TemplateToken(TokenType.EOF, "");
         }
 
         // -------- INTERPOLATION --------
         if (startsWith("${")) {
             int start = pos + 2;
-            int end = s.indexOf('}', start);
+            int end = template.indexOf('}', start);
             if (end < 0) throw new RuntimeException("Unclosed interpolation");
 
-            String expr = s.substring(start, end).trim();
+            String expr = template.substring(start, end).trim();
             pos = end + 1;
             return new TemplateToken(TokenType.INTERPOLATION, expr);
         }
@@ -54,10 +67,10 @@ public class TemplateLexer {
         // -------- DIRECTIVE START (<#...>) --------
         if (startsWith("<#")) {
             int start = pos + 2;
-            int end = s.indexOf('>', start);
+            int end = template.indexOf('>', start);
             if (end < 0) throw new RuntimeException("Unclosed directive start");
 
-            String name = s.substring(start, end).trim();
+            String name = template.substring(start, end).trim();
             pos = end + 1;
             return new TemplateToken(TokenType.DIRECTIVE_START, name);
         }
@@ -65,20 +78,20 @@ public class TemplateLexer {
         // -------- DIRECTIVE END (</#...>) --------
         if (startsWith("</#")) {
             int start = pos + 3;
-            int end = s.indexOf('>', start);
+            int end = template.indexOf('>', start);
             if (end < 0) throw new RuntimeException("Unclosed directive end");
 
-            String name = s.substring(start, end).trim();
+            String name = template.substring(start, end).trim();
             pos = end + 1;
             return new TemplateToken(TokenType.DIRECTIVE_END, name);
         }
 
         // -------- TEXT --------
         int start = pos;
-        while (pos < s.length() && !startsWith("${") && !startsWith("<#") && !startsWith("</#")) {
+        while (pos < template.length() && !startsWith("${") && !startsWith("<#") && !startsWith("</#")) {
             pos++;
         }
 
-        return new TemplateToken(TokenType.TEXT, s.substring(start, pos));
+        return new TemplateToken(TokenType.TEXT, template.substring(start, pos));
     }
 }
