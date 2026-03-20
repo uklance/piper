@@ -104,21 +104,48 @@ public class TemplateParser {
     }
 
     private boolean isDirectiveStart(TemplateToken token, String text) {
-        return token.type == TokenType.DIRECTIVE_START && text.equals(token.text);
+        if (token.type == TokenType.DIRECTIVE_START && token.text.startsWith(text)) {
+            return text.length() == token.text.length() || Character.isWhitespace(token.text.charAt(text.length()));
+        }
+        return false;
     }
 
     private boolean isDirectiveEnd(TemplateToken token, String text) {
         return token.type == TokenType.DIRECTIVE_END && text.equals(token.text);
     }
 
+    private static class IfBranch {
+        public IfBranch(Expression test, List<Node> nodes) {
+            this.test = test;
+            this.nodes = nodes;
+        }
+        private final Expression test;
+        private final List<Node> nodes;
+    }
+
     private Node parseIf(TemplateLexer lexer, String args) throws IOException {
         lexer.next(TokenType.DIRECTIVE_START);
-        Expression condExpr = expressionParser.parse(args);
+        List<IfBranch> branches = new ArrayList<>();
+        {
+            Expression expr = expressionParser.parse(args);
+            List<Node> nodes = parseNodes(lexer, t ->
+                    isDirectiveStart(t, "else") ||
+                    isDirectiveStart(t, "elseif") ||
+                    isDirectiveEnd(t, "if"));
 
-        List<Node> thenNodes = parseNodes(lexer, t ->
-                isDirectiveStart(t, "else") || isDirectiveEnd(t, "if")
-        );
+            branches.add(new IfBranch(expr, nodes));
+        }
+        while (isDirectiveStart(lexer.peek(), "elseif")) {
+            TemplateToken token = lexer.next(TokenType.DIRECTIVE_START);
 
+            Expression expr = expressionParser.parse(token.text.substring(6));
+            List<Node> nodes = parseNodes(lexer, t ->
+                isDirectiveStart(t, "else") ||
+                isDirectiveStart(t, "elseif") ||
+                isDirectiveEnd(t, "if"));
+
+            branches.add(new IfBranch(expr, nodes));
+        }
         List<Node> elseNodes;
         if (lexer.peekType() == TokenType.DIRECTIVE_START) {
             lexer.next(TokenType.DIRECTIVE_START); // consume <#else>
@@ -130,8 +157,13 @@ public class TemplateParser {
         lexer.next(TokenType.DIRECTIVE_END); // consume </#if>
 
         return (context, sink) -> {
-            boolean cond = context.isTruthy(condExpr.eval(context));
-            List<Node> chosen = cond ? thenNodes : elseNodes;
+            List<Node> chosen = elseNodes;
+            for (IfBranch branch : branches) {
+                if (context.isTruthy(branch.test.eval(context))) {
+                    chosen = branch.nodes;
+                    break;
+                }
+            }
             if (chosen != null) {
                 for (Node n : chosen) {
                     n.render(context, sink);

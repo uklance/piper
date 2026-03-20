@@ -162,4 +162,20 @@ class TemplateParserTest {
         String result = template.apply(context);
         assertThat(result.trim()).isEqualTo("Hello A Hello B Hello C");
     }
+
+    @Test
+    public void testElseif() throws Exception {
+        Template template = templateParser.parse("""
+                test1: <#if true>1<#elseif true>2<#else>3</#if>
+                test2: <#if false>1<#elseif true>2<#else>3</#if>
+                test3: <#if false>1<#elseif false>2<#else>3</#if>
+                """
+        );
+
+        String result = template.apply(context);
+        assertThat(result)
+                .contains("test1: 1")
+                .contains("test2: 2")
+                .contains("test3: 3");
+    }
 }

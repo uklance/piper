@@ -43,7 +43,16 @@ public class ExpressionParser {
                 return ctx -> t.text;
 
             case IDENTIFIER:
-                return ctx -> ctx.get(t.text);
+                switch (t.text) {
+                    case "true":
+                        return ctx -> Boolean.TRUE;
+                    case "false":
+                        return ctx -> Boolean.FALSE;
+                    case "null":
+                        return ctx -> null;
+                    default:
+                        return ctx -> ctx.get(t.text);
+                }
 
             case LPAREN: {
                 Node n = parseExpression(lexer, 0);
