@@ -5,29 +5,29 @@ import java.util.List;
 
 public class ExpressionParser {
 
-    public Expression parse(String text){
-        Lexer lexer=new Lexer(text);
-        Node node=parseExpression(lexer,0);
+    public Expression parse(String text) {
+        Lexer lexer = new Lexer(text);
+        Node node = parseExpression(lexer, 0);
         return new Expression(node);
     }
 
-    private Node parseExpression(Lexer lexer,int precedence){
+    private Node parseExpression(Lexer lexer, int precedence) {
 
-        Node left=parsePrefix(lexer);
+        Node left = parsePrefix(lexer);
 
-        while(precedence<precedence(lexer.peek().type)){
-            Token op=lexer.next();
-            left=parseInfix(lexer,left,op);
+        while (precedence < precedence(lexer.peek().type)) {
+            Token op = lexer.next();
+            left = parseInfix(lexer, left, op);
         }
 
         return left;
     }
 
-    private Node parsePrefix(Lexer lexer){
+    private Node parsePrefix(Lexer lexer) {
 
-        Token t=lexer.next();
+        Token t = lexer.next();
 
-        switch(t.type){
+        switch (t.type) {
 
             case NUMBER: {
                 Number value;
@@ -40,85 +40,89 @@ public class ExpressionParser {
             }
 
             case STRING:
-                return ctx->t.text;
+                return ctx -> t.text;
 
             case IDENTIFIER:
                 return ctx -> ctx.get(t.text);
 
-            case LPAREN:{
-                Node n=parseExpression(lexer,0);
+            case LPAREN: {
+                Node n = parseExpression(lexer, 0);
                 lexer.next(TokenType.RPAREN);
                 return n;
             }
 
             default:
-                throw new RuntimeException("Unexpected "+t.type);
+                throw new RuntimeException("Unexpected " + t.type);
         }
     }
 
-    private Node parseInfix(Lexer lexer,Node left,Token op){
+    private Node parseInfix(Lexer lexer, Node left, Token op) {
 
-        switch(op.type){
+        switch (op.type) {
 
             case PLUS:
             case MINUS:
             case STAR:
-            case SLASH:{
+            case SLASH: {
 
-                int p=precedence(op.type);
-                Node r=parseExpression(lexer,p);
+                int p = precedence(op.type);
+                Node r = parseExpression(lexer, p);
 
-                return ctx->{
+                return ctx -> {
 
-                    double a=((Number)left.eval(ctx)).doubleValue();
-                    double b=((Number)r.eval(ctx)).doubleValue();
+                    double a = ((Number) left.eval(ctx)).doubleValue();
+                    double b = ((Number) r.eval(ctx)).doubleValue();
 
-                    switch(op.type){
-                        case PLUS:return a+b;
-                        case MINUS:return a-b;
-                        case STAR:return a*b;
-                        default:return a/b;
+                    switch (op.type) {
+                        case PLUS:
+                            return a + b;
+                        case MINUS:
+                            return a - b;
+                        case STAR:
+                            return a * b;
+                        default:
+                            return a / b;
                     }
                 };
             }
 
-            case DOT:{
+            case DOT: {
 
-                String name=lexer.next(TokenType.IDENTIFIER).text;
+                String name = lexer.next(TokenType.IDENTIFIER).text;
 
-                if(lexer.peek().type==TokenType.LPAREN)
-                    return parseMethodCall(lexer,left,name,false);
+                if (lexer.peek().type == TokenType.LPAREN)
+                    return parseMethodCall(lexer, left, name, false);
 
-                return new PropertyNode(left,name,false);
+                return new PropertyNode(left, name, false);
             }
 
-            case SAFE_DOT:{
+            case SAFE_DOT: {
 
-                String name=lexer.next(TokenType.IDENTIFIER).text;
+                String name = lexer.next(TokenType.IDENTIFIER).text;
 
-                if(lexer.peek().type==TokenType.LPAREN)
-                    return parseMethodCall(lexer,left,name,true);
+                if (lexer.peek().type == TokenType.LPAREN)
+                    return parseMethodCall(lexer, left, name, true);
 
-                return new PropertyNode(left,name,true);
+                return new PropertyNode(left, name, true);
             }
 
-            case QUESTION:{
+            case QUESTION: {
 
-                Node t=parseExpression(lexer,0);
+                Node t = parseExpression(lexer, 0);
                 lexer.next(TokenType.COLON);
-                Node f=parseExpression(lexer,0);
+                Node f = parseExpression(lexer, 0);
 
-                return ctx->ctx.isTruthy(left.eval(ctx))?t.eval(ctx):f.eval(ctx);
+                return ctx -> ctx.isTruthy(left.eval(ctx)) ? t.eval(ctx) : f.eval(ctx);
             }
 
-            case LBRACKET:{
+            case LBRACKET: {
 
-                Node indexNode=parseExpression(lexer,0);
+                Node indexNode = parseExpression(lexer, 0);
                 lexer.next(TokenType.RBRACKET);
 
-                return ctx->{
+                return ctx -> {
                     Object target = left.eval(ctx);
-                    Integer index=ctx.convert(indexNode.eval(ctx), Integer.class);
+                    Integer index = ctx.convert(indexNode.eval(ctx), Integer.class);
                     return ctx.get(target, index);
                 };
             }
@@ -158,62 +162,67 @@ public class ExpressionParser {
             }
         }
 
-        throw new RuntimeException("Unsupported operator "+op.type);
+        throw new RuntimeException("Unsupported operator " + op.type);
     }
 
-    private Node parseMethodCall(Lexer lexer,Node target,String name,boolean safe){
+    private Node parseMethodCall(Lexer lexer, Node target, String name, boolean safe) {
 
         lexer.next(TokenType.LPAREN);
 
-        List<Node> args=new ArrayList<>();
+        List<Node> args = new ArrayList<>();
 
-        if(lexer.peek().type!=TokenType.RPAREN){
+        if (lexer.peek().type != TokenType.RPAREN) {
 
-            args.add(parseExpression(lexer,0));
+            args.add(parseExpression(lexer, 0));
 
-            while(lexer.peek().type==TokenType.COMMA){
+            while (lexer.peek().type == TokenType.COMMA) {
                 lexer.next();
-                args.add(parseExpression(lexer,0));
+                args.add(parseExpression(lexer, 0));
             }
         }
 
         lexer.next(TokenType.RPAREN);
 
-        return ctx->{
+        return ctx -> {
 
-            Object obj=target.eval(ctx);
+            Object obj = target.eval(ctx);
 
-            if(obj==null){
-                if(safe) return null;
+            if (obj == null) {
+                if (safe) return null;
                 throw new RuntimeException("Null target");
             }
 
-            Object[] values=new Object[args.size()];
+            Object[] values = new Object[args.size()];
 
-            for(int i=0;i<args.size();i++)
-                values[i]=args.get(i).eval(ctx);
+            for (int i = 0; i < args.size(); i++)
+                values[i] = args.get(i).eval(ctx);
 
-            try{
+            try {
                 return ctx.invoke(obj, name, values);
-            }catch(Exception e){
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         };
     }
 
-    private int precedence(TokenType t){
+    private int precedence(TokenType t) {
 
-        switch(t){
+        switch (t) {
             case PLUS:
-            case MINUS:return 10;
+            case MINUS:
+                return 10;
             case STAR:
-            case SLASH:return 20;
+            case SLASH:
+                return 20;
             case DOT:
             case SAFE_DOT:
             case LPAREN:
-            case LBRACKET:return 30;
-            case PIPE:return 5;
-            case QUESTION:return 3;
+            case LBRACKET:
+                return 30;
+            case PIPE:
+                return 5;
+            case QUESTION:
+                return 3;
         }
 
         return 0;

@@ -1,7 +1,9 @@
 package com.example.template;
 
 import com.example.converter.DefaultConverterRegistry;
-import com.example.expression.*;
+import com.example.expression.DefaultExpressionContext;
+import com.example.expression.ExpressionContext;
+import com.example.expression.ExpressionParser;
 import com.example.glue.BeanGlue;
 import com.example.glue.DefaultGlueRegistry;
 import com.example.glue.ListGlue;
@@ -19,41 +21,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TemplateParserTest {
     private ExpressionContext context;
-    private TemplateParser templateParser = new TemplateParser(new ExpressionParser());
+    private final TemplateParser templateParser = new TemplateParser(new ExpressionParser());
 
     @BeforeEach
     public void beforeEach() {
-        Bean bean=new Bean();
-        bean.name="John";
-        bean.number=5;
-        bean.number2=3;
-        bean.flag1=true;
-        bean.flag2=false;
-        bean.list= List.of("A","B","C");
+        Bean bean = new Bean();
+        bean.name = "John";
+        bean.number = 5;
+        bean.number2 = 3;
+        bean.flag1 = true;
+        bean.flag2 = false;
+        bean.list = List.of("A", "B", "C");
         bean.localDate = LocalDate.parse("2007-12-03");
 
-        DefaultMapperRegistry mappers=new DefaultMapperRegistry();
-        mappers.register(String.class,"uppercase",(v,args)->v.toUpperCase());
-        mappers.register(LocalDate.class,"format",(v, args)-> {
+        DefaultMapperRegistry mappers = new DefaultMapperRegistry();
+        mappers.register(String.class, "uppercase", (v, args) -> v.toUpperCase());
+        mappers.register(LocalDate.class, "format", (v, args) -> {
             String pattern = (String) args[0];
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
             return v.format(formatter);
         });
-        DefaultConverterRegistry converters=new DefaultConverterRegistry();
+        DefaultConverterRegistry converters = new DefaultConverterRegistry();
 
-        converters.register(Integer.class,Number.class,v->v);
-        converters.register(Double.class,Number.class,v->v);
+        converters.register(Integer.class, Number.class, v -> v);
+        converters.register(Double.class, Number.class, v -> v);
 
         DefaultGlueRegistry glueRegistry = new DefaultGlueRegistry();
         glueRegistry.register(Object.class, new BeanGlue(), 0);
         glueRegistry.register(List.class, new ListGlue(), 1);
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
-        context = new DefaultExpressionContext(mappers,converters, glueRegistry);
-        context.set("bean",bean);
+        context = new DefaultExpressionContext(mappers, converters, glueRegistry);
+        context.set("bean", bean);
     }
 
-    static class Bean{
+    static class Bean {
         public String name;
         public int number;
         public int number2;
@@ -94,10 +96,10 @@ class TemplateParserTest {
     @Test
     public void test() throws Exception {
         Template template = templateParser.parse("""
-            flag1: <#if bean.flag1>Y<#else>N</#if>
-            flag2: <#if bean.flag2>Y<#else>N</#if>
-            list: <#list bean.list as entry>[${entry}],</#list>
-            """
+                flag1: <#if bean.flag1>Y<#else>N</#if>
+                flag2: <#if bean.flag2>Y<#else>N</#if>
+                list: <#list bean.list as entry>[${entry}],</#list>
+                """
         );
 
         String result = template.apply(context);
@@ -110,12 +112,12 @@ class TemplateParserTest {
     @Test
     public void testNested() throws Exception {
         Template template = templateParser.parse("""
-            <#list bean.list as i>
-                <#list bean.list as j>
-                    <#list bean.list as k>${i}${j}${k},</#list>
-                </#list>
-            </#list>                        
-            """
+                <#list bean.list as i>
+                    <#list bean.list as j>
+                        <#list bean.list as k>${i}${j}${k},</#list>
+                    </#list>
+                </#list>                        
+                """
         );
 
         String result = template.apply(context);
@@ -134,9 +136,9 @@ class TemplateParserTest {
     @Test
     public void testAssign() throws Exception {
         Template template = templateParser.parse("""
-            <#assign foo='abc'>
-            foo is ${foo}
-            """
+                <#assign foo='abc'>
+                foo is ${foo}
+                """
         );
 
         String result = template.apply(context);

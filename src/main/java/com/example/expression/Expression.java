@@ -4,8 +4,8 @@ public class Expression {
 
     private final Node root;
 
-    public Expression(Node root){
-        this.root=root;
+    public Expression(Node root) {
+        this.root = root;
     }
 
     public Object eval(ExpressionContext ctx) throws Exception {

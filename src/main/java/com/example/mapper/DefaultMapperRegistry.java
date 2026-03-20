@@ -8,12 +8,12 @@ public class DefaultMapperRegistry implements MapperRegistry {
 
     public <T> void register(Class<T> type, String name, Mapper<T> mapper) {
         registry
-            .computeIfAbsent(type,k->new HashMap<>())
-            .put(name,mapper);
+                .computeIfAbsent(type, k -> new HashMap<>())
+                .put(name, mapper);
     }
 
     public Mapper<?> find(Class<?> type, String name) {
-        Map<String,Mapper<?>> m = registry.get(type);
+        Map<String, Mapper<?>> m = registry.get(type);
         if (m == null) return null;
         return m.get(name);
     }
@@ -24,6 +24,6 @@ public class DefaultMapperRegistry implements MapperRegistry {
         if (mapper == null) {
             throw new RuntimeException("Mapper not found: " + mapperName);
         }
-        return mapper.apply(value,args);
+        return mapper.apply(value, args);
     }
 }

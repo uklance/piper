@@ -18,41 +18,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ExpressionParserTest {
     private ExpressionContext context;
-    private ExpressionParser parser = new ExpressionParser();
+    private final ExpressionParser parser = new ExpressionParser();
 
     @BeforeEach
     public void beforeEach() {
-        Bean bean=new Bean();
-        bean.name="John";
-        bean.number=5;
-        bean.number2=3;
-        bean.flag1=true;
-        bean.flag2=false;
-        bean.list=List.of("A","B","C");
+        Bean bean = new Bean();
+        bean.name = "John";
+        bean.number = 5;
+        bean.number2 = 3;
+        bean.flag1 = true;
+        bean.flag2 = false;
+        bean.list = List.of("A", "B", "C");
         bean.localDate = LocalDate.parse("2007-12-03");
 
-        DefaultMapperRegistry mappers=new DefaultMapperRegistry();
-        mappers.register(String.class,"uppercase",(v,args)->v.toUpperCase());
-        mappers.register(LocalDate.class,"format",(v, args)-> {
+        DefaultMapperRegistry mappers = new DefaultMapperRegistry();
+        mappers.register(String.class, "uppercase", (v, args) -> v.toUpperCase());
+        mappers.register(LocalDate.class, "format", (v, args) -> {
             String pattern = (String) args[0];
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
             return v.format(formatter);
         });
-        DefaultConverterRegistry converters=new DefaultConverterRegistry();
+        DefaultConverterRegistry converters = new DefaultConverterRegistry();
 
-        converters.register(Integer.class,Number.class,v->v);
-        converters.register(Double.class,Number.class,v->v);
+        converters.register(Integer.class, Number.class, v -> v);
+        converters.register(Double.class, Number.class, v -> v);
 
         DefaultGlueRegistry glueRegistry = new DefaultGlueRegistry();
         glueRegistry.register(Object.class, new BeanGlue(), 0);
         glueRegistry.register(List.class, new ListGlue(), 1);
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
-        context = new DefaultExpressionContext(mappers,converters, glueRegistry);
-        context.set("bean",bean);
+        context = new DefaultExpressionContext(mappers, converters, glueRegistry);
+        context.set("bean", bean);
     }
 
-    static class Bean{
+    static class Bean {
         public String name;
         public int number;
         public int number2;
@@ -93,14 +93,14 @@ class ExpressionParserTest {
     @Test
     void testExpression() throws Exception {
         assertThat(eval("bean.number * 4 + bean.number2")).isEqualTo(23D);
-        assertThat(eval( "bean.name | uppercase")).isEqualTo("JOHN");
-        assertThat(eval( "bean.flag1 ? 'Y' : 'N'")).isEqualTo("Y");
-        assertThat(eval( "bean.flag2 ? 'Y' : 'N'")).isEqualTo("N");
-        assertThat(eval( "bean.list[1]")).isEqualTo("B");
-        assertThat(eval( "bean.localDate | format('d/M/yyyy')")).isEqualTo("3/12/2007");
-        assertThat(eval( "bean.localDate | format('yyyy-MM-dd')")).isEqualTo("2007-12-03");
-        assertThat(eval( "4 * 3 + 10")).isEqualTo(22D);
-        assertThat(eval( "10 + 4 * 3")).isEqualTo(22D);
+        assertThat(eval("bean.name | uppercase")).isEqualTo("JOHN");
+        assertThat(eval("bean.flag1 ? 'Y' : 'N'")).isEqualTo("Y");
+        assertThat(eval("bean.flag2 ? 'Y' : 'N'")).isEqualTo("N");
+        assertThat(eval("bean.list[1]")).isEqualTo("B");
+        assertThat(eval("bean.localDate | format('d/M/yyyy')")).isEqualTo("3/12/2007");
+        assertThat(eval("bean.localDate | format('yyyy-MM-dd')")).isEqualTo("2007-12-03");
+        assertThat(eval("4 * 3 + 10")).isEqualTo(22D);
+        assertThat(eval("10 + 4 * 3")).isEqualTo(22D);
     }
 
     Object eval(String expression) throws Exception {

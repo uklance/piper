@@ -10,32 +10,32 @@ public class DefaultConverterRegistry implements ConverterRegistry {
         Class to;
 
         Key(Class f, Class t) {
-            from=f;
-            to=t;
+            from = f;
+            to = t;
         }
 
         public int hashCode() {
-            return from.hashCode()*31+to.hashCode();
+            return from.hashCode() * 31 + to.hashCode();
         }
 
         public boolean equals(Object o) {
-            Key k=(Key)o;
-            return from.equals(k.from)&&to.equals(k.to);
+            Key k = (Key) o;
+            return from.equals(k.from) && to.equals(k.to);
         }
     }
 
-    private final Map<Key,Converter> converters=new HashMap<>();
+    private final Map<Key, Converter> converters = new HashMap<>();
 
-    public <F,T> void register(Class<F> from, Class<T> to, Converter<F,T> converter) {
-        converters.put(new Key(from,to),converter);
+    public <F, T> void register(Class<F> from, Class<T> to, Converter<F, T> converter) {
+        converters.put(new Key(from, to), converter);
     }
 
     public <T> T convert(Object value, Class<T> type) {
 
-        if (value==null) return null;
+        if (value == null) return null;
 
-        Converter c=converters.get(new Key(value.getClass(),type));
-        if (c!=null) {
+        Converter c = converters.get(new Key(value.getClass(), type));
+        if (c != null) {
             return type.cast(c.convert(value));
         }
 

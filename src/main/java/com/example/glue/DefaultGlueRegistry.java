@@ -6,7 +6,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DefaultGlueRegistry implements GlueRegistry {
-    private record Entry(Class<?> type, Glue glue, int priority) {}
+    private record Entry(Class<?> type, Glue glue, int priority) {
+    }
 
     private final List<Entry> registered = new CopyOnWriteArrayList<>();
     private final ConcurrentMap<Class<?>, Glue> cache = new ConcurrentHashMap<>();

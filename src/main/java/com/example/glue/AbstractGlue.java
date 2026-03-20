@@ -7,7 +7,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public abstract class AbstractGlue<T> implements Glue<T> {
-    private record Key(Class<?> type, String name, int parameterCount) {}
+    private record Key(Class<?> type, String name, int parameterCount) {
+    }
+
     private final ConcurrentMap<Key, Method> cache = new ConcurrentHashMap<>();
 
     @Override

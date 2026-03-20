@@ -8,7 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class BeanGlue extends AbstractGlue {
-    private record Key(Class<?> type, String name) {}
+    private record Key(Class<?> type, String name) {
+    }
+
     private final ConcurrentMap<Key, Method> getCache = new ConcurrentHashMap<>();
 
     @Override
@@ -17,7 +19,7 @@ public class BeanGlue extends AbstractGlue {
             Set<String> methodNames = Set.of("is" + capitalize(key.name), "get" + capitalize(key.name));
             List<Method> candidates = new ArrayList<>();
             for (Method method : key.type.getDeclaredMethods()) {
-                if (methodNames.contains(method.getName())  && method.getParameterCount() == 0) {
+                if (methodNames.contains(method.getName()) && method.getParameterCount() == 0) {
                     candidates.add(method);
                 }
             }
