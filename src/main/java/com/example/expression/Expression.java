@@ -8,11 +8,11 @@ public class Expression {
         this.root = root;
     }
 
-    public Object eval(ExpressionContext ctx) throws Exception {
+    public Object eval(EvalContext ctx) throws Exception {
         return root.eval(ctx);
     }
 
-    public <T> T eval(ExpressionContext ctx, Class<T> type) throws Exception {
+    public <T> T eval(EvalContext ctx, Class<T> type) throws Exception {
         return ctx.convert(root.eval(ctx), type);
     }
 }

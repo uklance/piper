@@ -1,6 +1,6 @@
 package com.example.expression;
 
-public interface ExpressionContext {
+public interface EvalContext {
 
     Object get(String name);
 

@@ -11,7 +11,7 @@ public class PropertyNode implements Node {
         this.safe = safe;
     }
 
-    public Object eval(ExpressionContext ctx) throws Exception {
+    public Object eval(EvalContext ctx) throws Exception {
         Object target = targetNode.eval(ctx);
         if (target == null) {
             if (safe) return null;

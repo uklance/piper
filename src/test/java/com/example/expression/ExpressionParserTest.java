@@ -17,7 +17,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ExpressionParserTest {
-    private ExpressionContext context;
+    private EvalContext context;
     private final ExpressionParser parser = new ExpressionParser();
 
     @BeforeEach
@@ -48,7 +48,7 @@ class ExpressionParserTest {
         glueRegistry.register(List.class, new ListGlue(), 1);
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
-        context = new DefaultExpressionContext(mappers, converters, glueRegistry);
+        context = new DefaultEvalContext(mappers, converters, glueRegistry);
         context.set("bean", bean);
     }
 

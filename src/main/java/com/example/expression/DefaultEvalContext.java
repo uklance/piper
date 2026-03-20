@@ -7,17 +7,18 @@ import com.example.mapper.MapperRegistry;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DefaultExpressionContext implements ExpressionContext {
+public class DefaultEvalContext implements EvalContext {
     private final Map<String, Object> vars = new HashMap<>();
 
     private final MapperRegistry mapperRegistry;
     private final ConverterRegistry converterRegistry;
     private final GlueRegistry glueRegistry;
 
-    public DefaultExpressionContext(
+    public DefaultEvalContext(
             MapperRegistry mapperRegistry,
             ConverterRegistry converterRegistry,
-            GlueRegistry glueRegistry) {
+            GlueRegistry glueRegistry
+    ) {
         this.mapperRegistry = mapperRegistry;
         this.converterRegistry = converterRegistry;
         this.glueRegistry = glueRegistry;

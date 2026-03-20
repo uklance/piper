@@ -1,8 +1,8 @@
 package com.example.template;
 
 import com.example.converter.DefaultConverterRegistry;
-import com.example.expression.DefaultExpressionContext;
-import com.example.expression.ExpressionContext;
+import com.example.expression.DefaultEvalContext;
+import com.example.expression.EvalContext;
 import com.example.expression.ExpressionParser;
 import com.example.glue.BeanGlue;
 import com.example.glue.DefaultGlueRegistry;
@@ -12,6 +12,8 @@ import com.example.mapper.DefaultMapperRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -20,8 +22,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TemplateParserTest {
-    private ExpressionContext context;
-    private final TemplateParser templateParser = new TemplateParser(new ExpressionParser());
+    private EvalContext context;
+    private TemplateParser templateParser;
 
     @BeforeEach
     public void beforeEach() {
@@ -51,7 +53,15 @@ class TemplateParserTest {
         glueRegistry.register(List.class, new ListGlue(), 1);
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
-        context = new DefaultExpressionContext(mappers, converters, glueRegistry);
+        Map<String, String> includeMap = Map.of("hello-current.ftl", "Hello ${current}");
+        ReaderSource readerSource = path -> {
+            if (!includeMap.containsKey(path)) throw new IOException("No such resource " + path);
+            String ftl = includeMap.get(path);
+            return new StringReader(ftl);
+        };
+
+        templateParser = new TemplateParser(new ExpressionParser(), readerSource);
+        context = new DefaultEvalContext(mappers, converters, glueRegistry);
         context.set("bean", bean);
     }
 
@@ -145,4 +155,11 @@ class TemplateParserTest {
         assertThat(result.trim()).isEqualTo("foo is abc");
     }
 
+    @Test
+    public void testInclude() throws Exception {
+        Template template = templateParser.parse("<#list bean.list as current><#include 'hello-current.ftl'> </#list>");
+
+        String result = template.apply(context);
+        assertThat(result.trim()).isEqualTo("Hello A Hello B Hello C");
+    }
 }

@@ -1,7 +1,7 @@
 package com.example.template;
 
-import com.example.expression.ExpressionContext;
+import com.example.expression.EvalContext;
 
 public interface Node {
-    void render(ExpressionContext context, StringSink sink) throws Exception;
+    void render(EvalContext context, StringSink sink) throws Exception;
 }

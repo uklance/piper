@@ -15,7 +15,8 @@ public class TemplateLexer {
         while ((n = reader.read(buffer)) != -1) {
             builder.append(buffer, 0, n);
         }
-        template = builder.toString();
+        this.template = builder.toString();
+        this.next = parseNext();
     }
 
     public TemplateLexer(String template) {

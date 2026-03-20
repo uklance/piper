@@ -3,21 +3,28 @@ package com.example.template;
 import com.example.expression.Expression;
 import com.example.expression.ExpressionParser;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TemplateParser {
-
+    private final ReaderSource readerSource;
     private final ExpressionParser expressionParser;
 
-    public TemplateParser(ExpressionParser expressionParser) {
+    public TemplateParser(ExpressionParser expressionParser, ReaderSource readerSource) {
+        this.readerSource = readerSource;
         this.expressionParser = expressionParser;
     }
 
-    public Template parse(String template) {
-        TemplateLexer lexer = new TemplateLexer(template);
+    public Template parse(String template) throws IOException {
+        return parse(new TemplateLexer(template));
+    }
 
+    public Template parse(TemplateLexer lexer) throws IOException {
         List<Node> nodes = parseNodes(lexer, t -> false);
 
         if (lexer.peekType() != TokenType.EOF) {
@@ -31,7 +38,7 @@ public class TemplateParser {
         };
     }
 
-    private List<Node> parseNodes(TemplateLexer lexer, Predicate<TemplateToken> stopPredicate) {
+    private List<Node> parseNodes(TemplateLexer lexer, Predicate<TemplateToken> stopPredicate) throws IOException {
         List<Node> nodes = new ArrayList<>();
 
         for (TemplateToken token = lexer.peek(); !(token.type == TokenType.EOF || stopPredicate.test(token)); token = lexer.peek()) {
@@ -58,6 +65,9 @@ public class TemplateParser {
                             break;
                         case "assign":
                             nodes.add(parseAssign(lexer, args));
+                            break;
+                        case "include":
+                            nodes.add(parseInclude(lexer, args));
                             break;
                         default:
                             throw new RuntimeException("Unknown directive: " + name);
@@ -101,7 +111,7 @@ public class TemplateParser {
         return token.type == TokenType.DIRECTIVE_END && text.equals(token.text);
     }
 
-    private Node parseIf(TemplateLexer lexer, String args) {
+    private Node parseIf(TemplateLexer lexer, String args) throws IOException {
         lexer.next(TokenType.DIRECTIVE_START);
         Expression condExpr = expressionParser.parse(args);
 
@@ -130,7 +140,7 @@ public class TemplateParser {
         };
     }
 
-    private Node parseList(TemplateLexer lexer, String args) {
+    private Node parseList(TemplateLexer lexer, String args) throws IOException {
         lexer.next(TokenType.DIRECTIVE_START);
         int asIndex = args.indexOf(" as ");
         if (asIndex < 0) {
@@ -166,5 +176,19 @@ public class TemplateParser {
         String exprText = args.substring(eqIndex + 1).trim();
         Expression expr = expressionParser.parse(exprText);
         return (context, sink) -> context.set(varName, expr.eval(context));
+    }
+
+    private static final Pattern INCLUDE_PATTERN = Pattern.compile("\\s*'([^']+)'\\s*");
+    private Node parseInclude(TemplateLexer lexer, String args) throws IOException {
+        lexer.next(TokenType.DIRECTIVE_START);
+        Matcher matcher = INCLUDE_PATTERN.matcher(args);
+        if (!matcher.matches()) {
+            throw new RuntimeException("Invalid include args: " + args);
+        }
+        String path = matcher.group(1);
+        try (Reader reader = readerSource.get(path)) {
+            Template include = parse(new TemplateLexer(reader));
+            return (context, sink) -> include.apply(context, sink);
+        }
     }
 }
