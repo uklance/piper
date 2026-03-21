@@ -51,7 +51,7 @@ public class ExpressionParser {
                     case "null":
                         return ctx -> null;
                     default:
-                        return ctx -> ctx.get(t.text);
+                        return ctx -> ctx.getValue(t.text);
                 }
 
             case LPAREN: {

@@ -49,7 +49,7 @@ class ExpressionParserTest {
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
         context = new DefaultEvalContext(mappers, converters, glueRegistry);
-        context.set("bean", bean);
+        context.setValue("bean", bean);
     }
 
     static class Bean {

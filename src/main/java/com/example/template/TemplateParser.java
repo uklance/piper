@@ -1,5 +1,7 @@
 package com.example.template;
 
+import com.example.expression.EvalContext;
+import com.example.expression.EvalContextFactory;
 import com.example.expression.Expression;
 import com.example.expression.ExpressionParser;
 
@@ -7,6 +9,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,10 +17,12 @@ import java.util.regex.Pattern;
 public class TemplateParser {
     private final ReaderSource readerSource;
     private final ExpressionParser expressionParser;
+    private final EvalContextFactory evalContextFactory;
 
-    public TemplateParser(ExpressionParser expressionParser, ReaderSource readerSource) {
+    public TemplateParser(ExpressionParser expressionParser, ReaderSource readerSource, EvalContextFactory evalContextFactory) {
         this.readerSource = readerSource;
         this.expressionParser = expressionParser;
+        this.evalContextFactory = evalContextFactory;
     }
 
     public Template parse(String template) throws IOException {
@@ -31,9 +36,17 @@ public class TemplateParser {
             throw new RuntimeException("Unexpected token after parsing: " + lexer.peekType());
         }
 
-        return (context, sink) -> {
-            for (Node node : nodes) {
-                node.render(context, sink);
+        return new Template() {
+            @Override
+            public void apply(EvalContext context, StringSink sink) throws Exception {
+                for (Node node : nodes) {
+                    node.render(context, sink);
+                }
+            }
+
+            @Override
+            public void apply(Map<String, ?> context, StringSink sink) throws Exception {
+                apply(evalContextFactory.create(context), sink);
             }
         };
     }
@@ -182,7 +195,7 @@ public class TemplateParser {
         return (context, sink) -> {
             Iterable<?> list = listExpr.eval(context, Iterable.class);
             for (Object item : list) {
-                context.set(varName, item);
+                context.setValue(varName, item);
                 for (Node n : body) {
                     n.render(context, sink);
                 }
@@ -199,7 +212,7 @@ public class TemplateParser {
         }
         String varName = matcher.group(1);
         Expression expr = expressionParser.parse(matcher.group(2));
-        return (context, sink) -> context.set(varName, expr.eval(context));
+        return (context, sink) -> context.setValue(varName, expr.eval(context));
     }
 
     private Node parseInclude(TemplateLexer lexer, String args) {

@@ -1,10 +1,13 @@
 package com.example.expression;
 
+import java.util.Map;
+
 public interface EvalContext {
+    Map<String, Object> getValues();
 
-    Object get(String name);
+    Object getValue(String name);
 
-    void set(String name, Object value);
+    void setValue(String name, Object value);
 
     <T> T convert(Object value, Class<T> type);
 

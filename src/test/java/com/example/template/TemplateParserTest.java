@@ -82,7 +82,7 @@ class TemplateParserTest {
 
         Template template = piper.loadTemplate("test.ftl");
 
-        String result = template.apply(piper.createEvalContext(Map.of("bean", bean)));
+        String result = template.apply(Map.of("bean", bean));
         assertThat(result)
                 .contains("flag1: Y")
                 .contains("flag2: N")
@@ -102,7 +102,7 @@ class TemplateParserTest {
         bean.list = List.of("A", "B", "C");
 
         Template template = piper.loadTemplate("testNested.ftl");
-        String result = template.apply(piper.createEvalContext(Map.of("bean", bean)));
+        String result = template.apply(Map.of("bean", bean));
         assertThat(result)
                 .contains("AAA,AAB,AAC")
                 .contains("ABA,ABB,ABC")
@@ -123,7 +123,7 @@ class TemplateParserTest {
         );
 
         Template template = piper.loadTemplate("testAssign.ftl");
-        String result = template.apply(piper.createEvalContext(Collections.emptyMap()));
+        String result = template.apply(Collections.emptyMap());
         assertThat(result.trim()).isEqualTo("foo is abc");
     }
 
@@ -142,7 +142,7 @@ class TemplateParserTest {
         bean.list = List.of("A", "B", "C");
 
         Template template = piper.loadTemplate("testInclude.ftl");
-        String result = template.apply(piper.createEvalContext(Map.of("bean", bean)));
+        String result = template.apply(Map.of("bean", bean));
 
         assertThat(result)
                 .contains("Good morning A")
@@ -160,7 +160,7 @@ class TemplateParserTest {
         );
 
         Template template = piper.loadTemplate("testElseIf.ftl");
-        String result = template.apply(piper.createEvalContext(Collections.emptyMap()));
+        String result = template.apply(Collections.emptyMap());
         assertThat(result)
                 .contains("test1: 1")
                 .contains("test2: 2")

@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DefaultEvalContext implements EvalContext {
-    private final Map<String, Object> vars = new HashMap<>();
+    private final Map<String, Object> values = new HashMap<>();
 
     private final MapperRegistry mapperRegistry;
     private final ConverterRegistry converterRegistry;
@@ -24,18 +24,27 @@ public class DefaultEvalContext implements EvalContext {
         this.glueRegistry = glueRegistry;
     }
 
-    public void set(String name, Object value) {
-        vars.put(name, value);
+    @Override
+    public void setValue(String name, Object value) {
+        values.put(name, value);
     }
 
-    public Object get(String name) {
-        return vars.get(name);
+    @Override
+    public Object getValue(String name) {
+        return values.get(name);
     }
 
+    @Override
+    public Map<String, Object> getValues() {
+        return values;
+    }
+
+    @Override
     public <T> T convert(Object value, Class<T> type) {
         return converterRegistry.convert(value, type);
     }
 
+    @Override
     public boolean isTruthy(Object value) {
         if (value == null) return false;
         if (value instanceof Boolean b) return b;
@@ -44,6 +53,7 @@ public class DefaultEvalContext implements EvalContext {
         return true;
     }
 
+    @Override
     public Object applyMapper(Object value, String mapperName, Object[] args) {
         return mapperRegistry.apply(value, mapperName, args);
     }

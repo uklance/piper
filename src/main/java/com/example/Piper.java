@@ -82,16 +82,16 @@ public class Piper {
     private final TemplateParser templateParser;
 
     public Piper(MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, ReaderSource readerSource) {
-        this.templateParser = new TemplateParser(expressionParser, readerSource);
+        this.templateParser = new TemplateParser(expressionParser, readerSource, this::createEvalContext);
         this.mappers = mappers;
         this.converters = converters;
         this.glues = glues;
         this.readerSource = readerSource;
     }
 
-    public EvalContext createEvalContext(Map<String, ?> vars) {
+    private EvalContext createEvalContext(Map<String, ?> vars) {
         DefaultEvalContext context = new DefaultEvalContext(mappers, converters, glues);
-        vars.forEach(context::set);
+        vars.forEach(context::setValue);
         return context;
     }
 
