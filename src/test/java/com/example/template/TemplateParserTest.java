@@ -53,7 +53,11 @@ class TemplateParserTest {
         glueRegistry.register(List.class, new ListGlue(), 1);
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
-        Map<String, String> includeMap = Map.of("hello-current.ftl", "Hello ${current}");
+        Map<String, String> includeMap = Map.of(
+                "greeting-A.ftl", "Good morning ${current}",
+                "greeting-B.ftl", "Hello ${current}",
+                "greeting-C.ftl", "Good evening ${current}"
+        );
         ReaderSource readerSource = path -> {
             if (!includeMap.containsKey(path)) throw new IOException("No such resource " + path);
             String ftl = includeMap.get(path);
@@ -157,10 +161,17 @@ class TemplateParserTest {
 
     @Test
     public void testInclude() throws Exception {
-        Template template = templateParser.parse("<#list bean.list as current><#include 'hello-current.ftl'> </#list>");
+        Template template = templateParser.parse("""
+            <#list bean.list as current>
+               <#include 'greeting-x.ftl'.replaceFirst('x', current)>
+            </#list>
+        """);
 
         String result = template.apply(context);
-        assertThat(result.trim()).isEqualTo("Hello A Hello B Hello C");
+        assertThat(result)
+                .contains("Good morning A")
+                .contains("Hello B")
+                .contains("Good evening C");
     }
 
     @Test

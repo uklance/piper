@@ -124,25 +124,18 @@ public class TemplateParser {
     }
 
     private Node parseIf(TemplateLexer lexer, String args) throws IOException {
-        lexer.next(TokenType.DIRECTIVE_START);
         List<IfBranch> branches = new ArrayList<>();
-        {
-            Expression expr = expressionParser.parse(args);
+        while (lexer.peekType() == TokenType.DIRECTIVE_START && !isDirectiveStart(lexer.peek(), "else")) {
+            TemplateToken token = lexer.next(TokenType.DIRECTIVE_START); // might be <#if ...> or <#elseif ...>
+            int spaceIndex = token.text.indexOf(' ');
+            if (spaceIndex < 0) {
+                throw new RuntimeException("Invalid args: " + token.text);
+            }
+            Expression expr = expressionParser.parse(token.text.substring(spaceIndex + 1));
             List<Node> nodes = parseNodes(lexer, t ->
                     isDirectiveStart(t, "else") ||
                     isDirectiveStart(t, "elseif") ||
                     isDirectiveEnd(t, "if"));
-
-            branches.add(new IfBranch(expr, nodes));
-        }
-        while (isDirectiveStart(lexer.peek(), "elseif")) {
-            TemplateToken token = lexer.next(TokenType.DIRECTIVE_START);
-
-            Expression expr = expressionParser.parse(token.text.substring(6));
-            List<Node> nodes = parseNodes(lexer, t ->
-                isDirectiveStart(t, "else") ||
-                isDirectiveStart(t, "elseif") ||
-                isDirectiveEnd(t, "if"));
 
             branches.add(new IfBranch(expr, nodes));
         }
@@ -209,17 +202,15 @@ public class TemplateParser {
         return (context, sink) -> context.set(varName, expr.eval(context));
     }
 
-    private static final Pattern INCLUDE_PATTERN = Pattern.compile("\\s*'([^']+)'\\s*");
-    private Node parseInclude(TemplateLexer lexer, String args) throws IOException {
+    private Node parseInclude(TemplateLexer lexer, String args) {
         lexer.next(TokenType.DIRECTIVE_START);
-        Matcher matcher = INCLUDE_PATTERN.matcher(args);
-        if (!matcher.matches()) {
-            throw new RuntimeException("Invalid include args: " + args);
-        }
-        String path = matcher.group(1);
-        try (Reader reader = readerSource.get(path)) {
-            Template include = parse(new TemplateLexer(reader));
-            return (context, sink) -> include.apply(context, sink);
-        }
+        Expression expr = expressionParser.parse(args);
+        return (context, sink) -> {
+            String path = expr.eval(context, String.class);
+            try (Reader reader = readerSource.get(path)) {
+                Template include = parse(new TemplateLexer(reader));
+                include.apply(context, sink);
+            }
+        };
     }
 }
