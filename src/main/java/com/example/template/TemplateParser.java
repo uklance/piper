@@ -4,6 +4,7 @@ import com.example.expression.EvalContext;
 import com.example.expression.EvalContextFactory;
 import com.example.expression.Expression;
 import com.example.expression.ExpressionParser;
+import com.example.loader.TemplateLoader;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -15,21 +16,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TemplateParser {
-    private final ReaderSource readerSource;
+    private final TemplateLoader templateLoader;
     private final ExpressionParser expressionParser;
     private final EvalContextFactory evalContextFactory;
 
-    public TemplateParser(ExpressionParser expressionParser, ReaderSource readerSource, EvalContextFactory evalContextFactory) {
-        this.readerSource = readerSource;
+    public TemplateParser(ExpressionParser expressionParser, TemplateLoader templateLoader, EvalContextFactory evalContextFactory) {
+        this.templateLoader = templateLoader;
         this.expressionParser = expressionParser;
         this.evalContextFactory = evalContextFactory;
+    }
+
+    public Template parse(Reader reader) throws IOException {
+        return parse(new TemplateLexer(reader));
     }
 
     public Template parse(String template) throws IOException {
         return parse(new TemplateLexer(template));
     }
 
-    public Template parse(TemplateLexer lexer) throws IOException {
+    private Template parse(TemplateLexer lexer) throws IOException {
         List<Node> nodes = parseNodes(lexer, t -> false);
 
         if (lexer.peekType() != TokenType.EOF) {
@@ -45,8 +50,11 @@ public class TemplateParser {
             }
 
             @Override
-            public void apply(Map<String, ?> context, StringSink sink) throws Exception {
-                apply(evalContextFactory.create(context), sink);
+            public void apply(Map<String, ?> contextMap, StringSink sink) throws Exception {
+                EvalContext context = evalContextFactory.create(contextMap);
+                for (Node node : nodes) {
+                    node.render(context, sink);
+                }
             }
         };
     }
@@ -220,10 +228,8 @@ public class TemplateParser {
         Expression expr = expressionParser.parse(args);
         return (context, sink) -> {
             String path = expr.eval(context, String.class);
-            try (Reader reader = readerSource.get(path)) {
-                Template include = parse(new TemplateLexer(reader));
-                include.apply(context, sink);
-            }
+            Template include = templateLoader.load(path, this);
+            include.apply(context, sink);
         };
     }
 }

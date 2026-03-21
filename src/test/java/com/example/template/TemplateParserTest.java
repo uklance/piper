@@ -1,11 +1,11 @@
 package com.example.template;
 
 import com.example.Piper;
+import com.example.loader.MapTemplateLoader;
+import com.example.loader.TemplateLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.StringReader;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashMap;
@@ -21,13 +21,8 @@ class TemplateParserTest {
     @BeforeEach
     public void beforeEach() {
         templateMap = new HashMap<>();
-
-        ReaderSource readerSource = path -> {
-            if (!templateMap.containsKey(path)) throw new IOException("No such resource " + path);
-            String ftl = templateMap.get(path);
-            return new StringReader(ftl);
-        };
-        piper = Piper.builderWithDefaults().withReaderSource(readerSource).build();
+        TemplateLoader loader = new MapTemplateLoader(templateMap);
+        piper = Piper.builderWithDefaults().withTemplateLoader(loader).build();
     }
 
     static class Bean {

@@ -10,13 +10,12 @@ import com.example.glue.*;
 import com.example.mapper.DefaultMapperRegistry;
 import com.example.mapper.Mapper;
 import com.example.mapper.MapperRegistry;
-import com.example.template.ReaderSource;
+import com.example.loader.ClasspathTemplateLoader;
 import com.example.template.Template;
-import com.example.template.TemplateLexer;
+import com.example.loader.TemplateLoader;
 import com.example.template.TemplateParser;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -27,7 +26,7 @@ public class Piper {
         private final DefaultMapperRegistry mappers = new DefaultMapperRegistry();
         private final DefaultConverterRegistry converters = new DefaultConverterRegistry();
         private final DefaultGlueRegistry glues = new DefaultGlueRegistry();
-        private ReaderSource readerSource;
+        private TemplateLoader templateLoader;
 
         public <T> Builder withMapper(Class<T> type, String name, Mapper<T> mapper) {
             mappers.register(type, name, mapper);
@@ -44,14 +43,14 @@ public class Piper {
             return this;
         }
 
-        public Builder withReaderSource(ReaderSource readerSource) {
-            this.readerSource = readerSource;
+        public Builder withTemplateLoader(TemplateLoader templateLoader) {
+            this.templateLoader = templateLoader;
             return this;
         }
 
         public Piper build() {
-            if (readerSource == null) throw new RuntimeException("readerSource not configured");
-            return new Piper(mappers, converters, glues, readerSource);
+            if (templateLoader == null) throw new RuntimeException("readerSource not configured");
+            return new Piper(mappers, converters, glues, templateLoader);
         }
     }
 
@@ -61,6 +60,7 @@ public class Piper {
 
     public static Builder builderWithDefaults() {
         return new Builder()
+            .withTemplateLoader(new ClasspathTemplateLoader(Thread.currentThread().getContextClassLoader()))
             .withMapper(String.class, "uppercase", (v, args) -> v.toUpperCase())
             .withMapper(LocalDate.class, "format", (v, args) -> {
                 String pattern = (String) args[0];
@@ -78,15 +78,15 @@ public class Piper {
     private final MapperRegistry mappers;
     private final ConverterRegistry converters;
     private final GlueRegistry glues;
-    private final ReaderSource readerSource;
+    private final TemplateLoader templateLoader;
     private final TemplateParser templateParser;
 
-    public Piper(MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, ReaderSource readerSource) {
-        this.templateParser = new TemplateParser(expressionParser, readerSource, this::createEvalContext);
+    public Piper(MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, TemplateLoader templateLoader) {
+        this.templateParser = new TemplateParser(expressionParser, templateLoader, this::createEvalContext);
         this.mappers = mappers;
         this.converters = converters;
         this.glues = glues;
-        this.readerSource = readerSource;
+        this.templateLoader = templateLoader;
     }
 
     private EvalContext createEvalContext(Map<String, ?> vars) {
@@ -96,8 +96,6 @@ public class Piper {
     }
 
     public Template loadTemplate(String path) throws IOException {
-        try (Reader reader = readerSource.get(path)) {
-            return templateParser.parse(new TemplateLexer(reader));
-        }
+        return templateLoader.load(path, templateParser);
     }
 }
