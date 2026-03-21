@@ -12,12 +12,13 @@ public class DefaultMapperRegistry implements MapperRegistry {
                 .put(name, mapper);
     }
 
-    public Mapper<?> find(Class<?> type, String name) {
+    private Mapper<?> find(Class<?> type, String name) {
         Map<String, Mapper<?>> m = registry.get(type);
         if (m == null) return null;
         return m.get(name);
     }
 
+    @Override
     public Object apply(Object value, String mapperName, Object[] args) {
         if (value == null) return null;
         Mapper mapper = find(value.getClass(), mapperName);

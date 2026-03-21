@@ -1,72 +1,33 @@
 package com.example.template;
 
-import com.example.converter.DefaultConverterRegistry;
-import com.example.expression.DefaultEvalContext;
-import com.example.expression.EvalContext;
-import com.example.expression.ExpressionParser;
-import com.example.glue.BeanGlue;
-import com.example.glue.DefaultGlueRegistry;
-import com.example.glue.ListGlue;
-import com.example.glue.MapGlue;
-import com.example.mapper.DefaultMapperRegistry;
+import com.example.Piper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TemplateParserTest {
-    private EvalContext context;
-    private TemplateParser templateParser;
+    private Piper piper;
+    private Map<String, String> templateMap;
 
     @BeforeEach
     public void beforeEach() {
-        Bean bean = new Bean();
-        bean.name = "John";
-        bean.number = 5;
-        bean.number2 = 3;
-        bean.flag1 = true;
-        bean.flag2 = false;
-        bean.list = List.of("A", "B", "C");
-        bean.localDate = LocalDate.parse("2007-12-03");
+        templateMap = new HashMap<>();
 
-        DefaultMapperRegistry mappers = new DefaultMapperRegistry();
-        mappers.register(String.class, "uppercase", (v, args) -> v.toUpperCase());
-        mappers.register(LocalDate.class, "format", (v, args) -> {
-            String pattern = (String) args[0];
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
-            return v.format(formatter);
-        });
-        DefaultConverterRegistry converters = new DefaultConverterRegistry();
-
-        converters.register(Integer.class, Number.class, v -> v);
-        converters.register(Double.class, Number.class, v -> v);
-
-        DefaultGlueRegistry glueRegistry = new DefaultGlueRegistry();
-        glueRegistry.register(Object.class, new BeanGlue(), 0);
-        glueRegistry.register(List.class, new ListGlue(), 1);
-        glueRegistry.register(Map.class, new MapGlue(), 2);
-
-        Map<String, String> includeMap = Map.of(
-                "greeting-A.ftl", "Good morning ${current}",
-                "greeting-B.ftl", "Hello ${current}",
-                "greeting-C.ftl", "Good evening ${current}"
-        );
         ReaderSource readerSource = path -> {
-            if (!includeMap.containsKey(path)) throw new IOException("No such resource " + path);
-            String ftl = includeMap.get(path);
+            if (!templateMap.containsKey(path)) throw new IOException("No such resource " + path);
+            String ftl = templateMap.get(path);
             return new StringReader(ftl);
         };
-
-        templateParser = new TemplateParser(new ExpressionParser(), readerSource);
-        context = new DefaultEvalContext(mappers, converters, glueRegistry);
-        context.set("bean", bean);
+        piper = Piper.builderWithDefaults().withReaderSource(readerSource).build();
     }
 
     static class Bean {
@@ -109,14 +70,19 @@ class TemplateParserTest {
 
     @Test
     public void test() throws Exception {
-        Template template = templateParser.parse("""
+        templateMap.put("test.ftl", """
                 flag1: <#if bean.flag1>Y<#else>N</#if>
                 flag2: <#if bean.flag2>Y<#else>N</#if>
-                list: <#list bean.list as entry>[${entry}],</#list>
-                """
+                list: <#list bean.list as entry>[${entry}],</#list>"""
         );
+        Bean bean = new Bean();
+        bean.flag1 = true;
+        bean.flag2 = false;
+        bean.list = List.of("A", "B", "C");
 
-        String result = template.apply(context);
+        Template template = piper.loadTemplate("test.ftl");
+
+        String result = template.apply(piper.createEvalContext(Map.of("bean", bean)));
         assertThat(result)
                 .contains("flag1: Y")
                 .contains("flag2: N")
@@ -125,16 +91,18 @@ class TemplateParserTest {
 
     @Test
     public void testNested() throws Exception {
-        Template template = templateParser.parse("""
+        templateMap.put("testNested.ftl","""
                 <#list bean.list as i>
                     <#list bean.list as j>
                         <#list bean.list as k>${i}${j}${k},</#list>
                     </#list>
-                </#list>                        
-                """
+                </#list>"""
         );
+        Bean bean = new Bean();
+        bean.list = List.of("A", "B", "C");
 
-        String result = template.apply(context);
+        Template template = piper.loadTemplate("testNested.ftl");
+        String result = template.apply(piper.createEvalContext(Map.of("bean", bean)));
         assertThat(result)
                 .contains("AAA,AAB,AAC")
                 .contains("ABA,ABB,ABC")
@@ -149,25 +117,33 @@ class TemplateParserTest {
 
     @Test
     public void testAssign() throws Exception {
-        Template template = templateParser.parse("""
-                <#assign foo='abc'>
-                foo is ${foo}
-                """
+        templateMap.put("testAssign.ftl", """
+            <#assign foo='abc'>
+            foo is ${foo}"""
         );
 
-        String result = template.apply(context);
+        Template template = piper.loadTemplate("testAssign.ftl");
+        String result = template.apply(piper.createEvalContext(Collections.emptyMap()));
         assertThat(result.trim()).isEqualTo("foo is abc");
     }
 
     @Test
     public void testInclude() throws Exception {
-        Template template = templateParser.parse("""
+        templateMap.put("testInclude.ftl", """
             <#list bean.list as current>
                <#include 'greeting-x.ftl'.replaceFirst('x', current)>
-            </#list>
-        """);
+            </#list>"""
+        );
+        templateMap.put("greeting-A.ftl", "Good morning ${current}");
+        templateMap.put("greeting-B.ftl", "Hello ${current}");
+        templateMap.put("greeting-C.ftl", "Good evening ${current}");
 
-        String result = template.apply(context);
+        Bean bean = new Bean();
+        bean.list = List.of("A", "B", "C");
+
+        Template template = piper.loadTemplate("testInclude.ftl");
+        String result = template.apply(piper.createEvalContext(Map.of("bean", bean)));
+
         assertThat(result)
                 .contains("Good morning A")
                 .contains("Hello B")
@@ -175,15 +151,16 @@ class TemplateParserTest {
     }
 
     @Test
-    public void testElseif() throws Exception {
-        Template template = templateParser.parse("""
+    public void testElseIf() throws Exception {
+        templateMap.put("testElseIf.ftl", """
                 test1: <#if true>1<#elseif true>2<#else>3</#if>
                 test2: <#if false>1<#elseif true>2<#else>3</#if>
                 test3: <#if false>1<#elseif false>2<#else>3</#if>
                 """
         );
 
-        String result = template.apply(context);
+        Template template = piper.loadTemplate("testElseIf.ftl");
+        String result = template.apply(piper.createEvalContext(Collections.emptyMap()));
         assertThat(result)
                 .contains("test1: 1")
                 .contains("test2: 2")
