@@ -3,6 +3,8 @@ package com.example.expression;
 import com.example.converter.ConverterRegistry;
 import com.example.glue.GlueRegistry;
 import com.example.mapper.MapperRegistry;
+import com.example.operation.BinaryOperationRegistry;
+import com.example.operation.BinaryOperations;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,15 +15,17 @@ public class DefaultEvalContext implements EvalContext {
     private final MapperRegistry mapperRegistry;
     private final ConverterRegistry converterRegistry;
     private final GlueRegistry glueRegistry;
+    private final BinaryOperationRegistry binaryOpsRegistry;
 
     public DefaultEvalContext(
             MapperRegistry mapperRegistry,
             ConverterRegistry converterRegistry,
-            GlueRegistry glueRegistry
-    ) {
+            GlueRegistry glueRegistry,
+            BinaryOperationRegistry binaryOpsRegistry) {
         this.mapperRegistry = mapperRegistry;
         this.converterRegistry = converterRegistry;
         this.glueRegistry = glueRegistry;
+        this.binaryOpsRegistry = binaryOpsRegistry;
     }
 
     @Override
@@ -32,11 +36,6 @@ public class DefaultEvalContext implements EvalContext {
     @Override
     public Object getValue(String name) {
         return values.get(name);
-    }
-
-    @Override
-    public Map<String, Object> getValues() {
-        return values;
     }
 
     @Override
@@ -71,5 +70,10 @@ public class DefaultEvalContext implements EvalContext {
     @Override
     public Object invoke(Object target, String name, Object[] args) throws Exception {
         return glueRegistry.get(target.getClass()).invoke(target, name, args);
+    }
+
+    @Override
+    public <T> BinaryOperations<T> getBinaryOperations(Class<T> type) {
+        return binaryOpsRegistry.get(type);
     }
 }

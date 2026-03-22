@@ -1,5 +1,7 @@
 package com.example.expression;
 
+import com.example.operation.BinaryOperations;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,29 +70,25 @@ public class ExpressionParser {
     private Node parseInfix(Lexer lexer, Node left, Token op) {
 
         switch (op.type) {
-
             case PLUS:
             case MINUS:
             case STAR:
             case SLASH: {
-
-                int p = precedence(op.type);
-                Node r = parseExpression(lexer, p);
-
+                Node right = parseExpression(lexer, precedence(op.type));
                 return ctx -> {
-
-                    double a = ((Number) left.eval(ctx)).doubleValue();
-                    double b = ((Number) r.eval(ctx)).doubleValue();
+                    Object leftValue = left.eval(ctx);
+                    BinaryOperations binaryOps = ctx.getBinaryOperations(leftValue.getClass());
+                    Object rightValue = ctx.convert(right.eval(ctx), binaryOps.getType());
 
                     switch (op.type) {
                         case PLUS:
-                            return a + b;
+                            return binaryOps.plus(leftValue, rightValue);
                         case MINUS:
-                            return a - b;
+                            return binaryOps.minus(leftValue, rightValue);
                         case STAR:
-                            return a * b;
+                            return binaryOps.multiply(leftValue, rightValue);
                         default:
-                            return a / b;
+                            return binaryOps.divide(leftValue, rightValue);
                     }
                 };
             }

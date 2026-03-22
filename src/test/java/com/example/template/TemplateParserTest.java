@@ -126,7 +126,7 @@ class TemplateParserTest {
     public void testInclude() throws Exception {
         templateMap.put("testInclude.ftl", """
             <#list bean.list as current>
-               <#include 'greeting-x.ftl'.replaceFirst('x', current)>
+               <#include 'greeting-' + current + '.ftl'>
             </#list>"""
         );
         templateMap.put("greeting-A.ftl", "Good morning ${current}");

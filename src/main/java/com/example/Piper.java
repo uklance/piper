@@ -7,12 +7,13 @@ import com.example.expression.DefaultEvalContext;
 import com.example.expression.EvalContext;
 import com.example.expression.ExpressionParser;
 import com.example.glue.*;
+import com.example.loader.ClasspathTemplateLoader;
+import com.example.loader.TemplateLoader;
 import com.example.mapper.DefaultMapperRegistry;
 import com.example.mapper.Mapper;
 import com.example.mapper.MapperRegistry;
-import com.example.loader.ClasspathTemplateLoader;
+import com.example.operation.*;
 import com.example.template.Template;
-import com.example.loader.TemplateLoader;
 import com.example.template.TemplateParser;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ public class Piper {
         private final DefaultMapperRegistry mappers = new DefaultMapperRegistry();
         private final DefaultConverterRegistry converters = new DefaultConverterRegistry();
         private final DefaultGlueRegistry glues = new DefaultGlueRegistry();
+        private final DefaultBinaryOperationsRegistry binaryOpsRegistry = new DefaultBinaryOperationsRegistry();
         private TemplateLoader templateLoader;
 
         public <T> Builder withMapper(Class<T> type, String name, Mapper<T> mapper) {
@@ -48,9 +50,14 @@ public class Piper {
             return this;
         }
 
+        public <T> Builder withBinaryOperations(Class<T> type, BinaryOperations<T> binaryOps) {
+            binaryOpsRegistry.register(type, binaryOps);
+            return this;
+        }
+
         public Piper build() {
-            if (templateLoader == null) throw new RuntimeException("readerSource not configured");
-            return new Piper(mappers, converters, glues, templateLoader);
+            if (templateLoader == null) throw new RuntimeException("templateLoader not configured");
+            return new Piper(mappers, converters, glues, templateLoader, binaryOpsRegistry);
         }
     }
 
@@ -71,7 +78,10 @@ public class Piper {
             .withConverter(Double.class, Number.class, v -> v)
             .withGlue(Object.class, new BeanGlue(), 0)
             .withGlue(List.class, new ListGlue(), 1)
-            .withGlue(Map.class, new MapGlue(), 2);
+            .withGlue(Map.class, new MapGlue(), 2)
+            .withBinaryOperations(String.class, new StringBinaryOperations())
+            .withBinaryOperations(Integer.class, new IntegerBinaryOperations())
+            .withBinaryOperations(Double.class, new DoubleBinaryOperations());
     }
 
     private final ExpressionParser expressionParser = new ExpressionParser();
@@ -80,17 +90,19 @@ public class Piper {
     private final GlueRegistry glues;
     private final TemplateLoader templateLoader;
     private final TemplateParser templateParser;
+    private final BinaryOperationRegistry binaryOpsRegistry;
 
-    public Piper(MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, TemplateLoader templateLoader) {
+    public Piper(MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, TemplateLoader templateLoader, BinaryOperationRegistry binaryOpsRegistry) {
         this.templateParser = new TemplateParser(expressionParser, templateLoader, this::createEvalContext);
         this.mappers = mappers;
         this.converters = converters;
         this.glues = glues;
         this.templateLoader = templateLoader;
+        this.binaryOpsRegistry = binaryOpsRegistry;
     }
 
     private EvalContext createEvalContext(Map<String, ?> vars) {
-        DefaultEvalContext context = new DefaultEvalContext(mappers, converters, glues);
+        DefaultEvalContext context = new DefaultEvalContext(mappers, converters, glues, binaryOpsRegistry);
         vars.forEach(context::setValue);
         return context;
     }

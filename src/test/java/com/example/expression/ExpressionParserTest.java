@@ -6,6 +6,10 @@ import com.example.glue.DefaultGlueRegistry;
 import com.example.glue.ListGlue;
 import com.example.glue.MapGlue;
 import com.example.mapper.DefaultMapperRegistry;
+import com.example.operation.DefaultBinaryOperationsRegistry;
+import com.example.operation.DoubleBinaryOperations;
+import com.example.operation.IntegerBinaryOperations;
+import com.example.operation.StringBinaryOperations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,8 +42,8 @@ class ExpressionParserTest {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
             return v.format(formatter);
         });
-        DefaultConverterRegistry converters = new DefaultConverterRegistry();
 
+        DefaultConverterRegistry converters = new DefaultConverterRegistry();
         converters.register(Integer.class, Number.class, v -> v);
         converters.register(Double.class, Number.class, v -> v);
 
@@ -48,7 +52,12 @@ class ExpressionParserTest {
         glueRegistry.register(List.class, new ListGlue(), 1);
         glueRegistry.register(Map.class, new MapGlue(), 2);
 
-        context = new DefaultEvalContext(mappers, converters, glueRegistry);
+        DefaultBinaryOperationsRegistry binaryOpsRegistry = new DefaultBinaryOperationsRegistry();
+        binaryOpsRegistry.register(String.class, new StringBinaryOperations());
+        binaryOpsRegistry.register(Integer.class, new IntegerBinaryOperations());
+        binaryOpsRegistry.register(Double.class, new DoubleBinaryOperations());
+
+        context = new DefaultEvalContext(mappers, converters, glueRegistry, binaryOpsRegistry);
         context.setValue("bean", bean);
     }
 
@@ -92,15 +101,17 @@ class ExpressionParserTest {
 
     @Test
     void testExpression() throws Exception {
-        assertThat(eval("bean.number * 4 + bean.number2")).isEqualTo(23D);
+        assertThat(eval("bean.number * 4 + bean.number2")).isEqualTo(23);
+        assertThat(eval("4.0 * 5.0")).isEqualTo(20D);
         assertThat(eval("bean.name | uppercase")).isEqualTo("JOHN");
         assertThat(eval("bean.flag1 ? 'Y' : 'N'")).isEqualTo("Y");
         assertThat(eval("bean.flag2 ? 'Y' : 'N'")).isEqualTo("N");
         assertThat(eval("bean.list[1]")).isEqualTo("B");
         assertThat(eval("bean.localDate | format('d/M/yyyy')")).isEqualTo("3/12/2007");
         assertThat(eval("bean.localDate | format('yyyy-MM-dd')")).isEqualTo("2007-12-03");
-        assertThat(eval("4 * 3 + 10")).isEqualTo(22D);
-        assertThat(eval("10 + 4 * 3")).isEqualTo(22D);
+        assertThat(eval("4 * 3 + 10")).isEqualTo(22);
+        assertThat(eval("10 + 4 * 3")).isEqualTo(22);
+        assertThat(eval("'a' + 'b'")).isEqualTo("ab");
     }
 
     Object eval(String expression) throws Exception {
