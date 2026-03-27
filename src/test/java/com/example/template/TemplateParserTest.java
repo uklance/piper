@@ -22,7 +22,7 @@ class TemplateParserTest {
     public void beforeEach() {
         templateMap = new HashMap<>();
         TemplateLoader loader = new MapTemplateLoader(templateMap);
-        piper = Piper.builderWithDefaults().withTemplateLoader(loader).build();
+        piper = Piper.builder().withDefaults().withTemplateLoader(loader).build();
     }
 
     static class Bean {

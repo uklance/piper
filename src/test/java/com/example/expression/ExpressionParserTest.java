@@ -5,6 +5,8 @@ import com.example.glue.BeanGlue;
 import com.example.glue.DefaultGlueRegistry;
 import com.example.glue.ListGlue;
 import com.example.glue.MapGlue;
+import com.example.mapper.DateTimeFormatMapper;
+import com.example.mapper.DecimalFormatMapper;
 import com.example.mapper.DefaultMapperRegistry;
 import com.example.operation.DefaultBinaryOperationsRegistry;
 import com.example.operation.DoubleBinaryOperations;
@@ -13,9 +15,12 @@ import com.example.operation.StringBinaryOperations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,11 +42,8 @@ class ExpressionParserTest {
 
         DefaultMapperRegistry mappers = new DefaultMapperRegistry();
         mappers.register(String.class, "uppercase", (v, args) -> v.toUpperCase());
-        mappers.register(LocalDate.class, "format", (v, args) -> {
-            String pattern = (String) args[0];
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
-            return v.format(formatter);
-        });
+        mappers.register(TemporalAccessor.class, "format", new DateTimeFormatMapper(Locale.UK));
+        mappers.register(Number.class, "format", new DecimalFormatMapper(DecimalFormatSymbols.getInstance(Locale.UK)));
 
         DefaultConverterRegistry converters = new DefaultConverterRegistry();
         converters.register(Integer.class, Number.class, v -> v);
@@ -109,6 +111,7 @@ class ExpressionParserTest {
         assertThat(eval("bean.list[1]")).isEqualTo("B");
         assertThat(eval("bean.localDate | format('d/M/yyyy')")).isEqualTo("3/12/2007");
         assertThat(eval("bean.localDate | format('yyyy-MM-dd')")).isEqualTo("2007-12-03");
+        assertThat(eval("12345.6789 | format('#,###.00')")).isEqualTo("12,345.68");
         assertThat(eval("4 * 3 + 10")).isEqualTo(22);
         assertThat(eval("10 + 4 * 3")).isEqualTo(22);
         assertThat(eval("'a' + 'b'")).isEqualTo("ab");
