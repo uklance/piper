@@ -26,7 +26,7 @@ public class DefaultConverterRegistry implements ConverterRegistry {
     public <T> T convert(Object value, Class<T> type) {
         if (value == null) return null;
         Key key = new Key(value.getClass(), type);
-        Converter<Object, T> converter = (Converter<Object, T>) cache.computeIfAbsent(key, this::find);
+        Converter<Object, T> converter = (Converter<Object, T>) cache.computeIfAbsent(key, k -> this.find(k.from, k.to));
         if (converter == NULL_CONVERTER) {
             throw new RuntimeException(String.format("Converter not found %s -> %s", key.from().getName(), type.getName()));
         }
@@ -34,9 +34,7 @@ public class DefaultConverterRegistry implements ConverterRegistry {
     }
 
     @SuppressWarnings("unchecked")
-    private Converter<?, ?> find(Key key) {
-        Class<?> from = key.from();
-        Class<?> to = key.to();
+    private Converter<?, ?> find(Class<?> from, Class<?> to) {
         if (from.equals(to)) {
             return IDENTITY_CONVERTER;
         }
@@ -61,6 +59,7 @@ public class DefaultConverterRegistry implements ConverterRegistry {
                 }
             }
         }
+
         if (to.isAssignableFrom(from)) {
             return IDENTITY_CONVERTER;
         }
