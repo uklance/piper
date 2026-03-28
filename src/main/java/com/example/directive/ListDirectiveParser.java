@@ -19,7 +19,7 @@ public class ListDirectiveParser implements DirectiveParser {
     }
 
     @Override
-    public TemplateNode parse(TemplateLexer lexer, String args, Context context) throws IOException {
+    public TemplateNode parse(TemplateLexer lexer, String args, DirectiveParserContext context) throws IOException {
         lexer.next(TemplateTokenType.DIRECTIVE_START);
         Matcher matcher = LIST_PATTERN.matcher(args);
         if (!matcher.matches()) {

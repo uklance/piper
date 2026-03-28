@@ -15,7 +15,7 @@ public class DefaultDirectiveParserRegistry implements DirectiveParserRegistry {
     }
 
     @Override
-    public TemplateNode parse(TemplateLexer lexer, String name, String args, DirectiveParser.Context context) throws IOException {
+    public TemplateNode parse(TemplateLexer lexer, String name, String args, DirectiveParserContext context) throws IOException {
         DirectiveParser parser = parsers.get(name);
         if (parser == null) {
             throw new RuntimeException(String.format("No DirectiveParser registered for '%s'", name));

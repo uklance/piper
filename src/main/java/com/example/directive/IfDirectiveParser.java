@@ -26,7 +26,7 @@ public class IfDirectiveParser implements DirectiveParser {
     }
 
     @Override
-    public TemplateNode parse(TemplateLexer lexer, String args, Context context) throws IOException {
+    public TemplateNode parse(TemplateLexer lexer, String args, DirectiveParserContext context) throws IOException {
         List<IfBranch> branches = new ArrayList<>();
         while (lexer.peekType() == TemplateTokenType.DIRECTIVE_START && !context.isDirectiveStart(lexer.peek(), "else")) {
             TemplateToken token = lexer.next(TemplateTokenType.DIRECTIVE_START); // might be <#if ...> or <#elseif ...>

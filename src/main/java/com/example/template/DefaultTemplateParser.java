@@ -1,6 +1,6 @@
 package com.example.template;
 
-import com.example.directive.DirectiveParser;
+import com.example.directive.DirectiveParserContext;
 import com.example.directive.DirectiveParserRegistry;
 import com.example.expression.EvalContext;
 import com.example.expression.EvalContextFactory;
@@ -16,18 +16,21 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 public class DefaultTemplateParser implements TemplateParser {
-    private final TemplateLoader templateLoader;
     private final ExpressionParser expressionParser;
     private final EvalContextFactory evalContextFactory;
     private final DirectiveParserRegistry directiveParserRegistry;
-    private final DirectiveParser.Context directiveParserContext;
+    private final DirectiveParserContext directiveParserContext;
 
-    public DefaultTemplateParser(ExpressionParser expressionParser, TemplateLoader templateLoader, EvalContextFactory evalContextFactory, DirectiveParserRegistry directiveParserRegistry) {
-        this.templateLoader = templateLoader;
+    public DefaultTemplateParser(
+            ExpressionParser expressionParser,
+            TemplateLoader templateLoader,
+            EvalContextFactory evalContextFactory,
+            DirectiveParserRegistry directiveParserRegistry
+    ) {
         this.expressionParser = expressionParser;
         this.evalContextFactory = evalContextFactory;
         this.directiveParserRegistry = directiveParserRegistry;
-        this.directiveParserContext = new DirectiveParser.Context() {
+        this.directiveParserContext = new DirectiveParserContext() {
             @Override
             public boolean isDirectiveStart(TemplateToken token, String text) {
                 if (token.type == TemplateTokenType.DIRECTIVE_START && token.text.startsWith(text)) {
