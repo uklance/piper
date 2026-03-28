@@ -19,42 +19,92 @@ import com.example.template.TemplateParser;
 import java.io.IOException;
 import java.text.DecimalFormatSymbols;
 import java.time.temporal.TemporalAccessor;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 public class Piper {
-    public static class Builder {
-        private final AtomicReference<Locale> locale = new AtomicReference<>(null);
-        private final AtomicReference<DecimalFormatSymbols> decimalFormatSymbols = new AtomicReference<>(null);
-        private final List<Consumer<DefaultConverterRegistry>> converterConfig = new ArrayList<>();
-        private final List<Consumer<DefaultGlueRegistry>> glueConfig = new ArrayList<>();
-        private final List<Consumer<DefaultBinaryOperationsRegistry>> binaryOpsConfig = new ArrayList<>();
-        private final List<Consumer<DefaultMapperRegistry>> mapperConfig = new ArrayList<>();
-        private final List<Consumer<DefaultDirectiveParserRegistry>> directiveConfig = new ArrayList<>();
-        private TemplateLoader templateLoader;
+    public interface Settings {
+        Locale getLocale();
+        DecimalFormatSymbols getDecimalFormatSymbols();
+        MemberAccess getMemberAccess();
+    }
 
-        public <T> Builder withMapper(Class<T> type, String name, Mapper<T> mapper) {
-            mapperConfig.add(registry -> registry.register(type, name, mapper));
+    private static class SettingsBuilder {
+        private Locale locale;
+        private DecimalFormatSymbols decimalFormatSymbols;
+        private MemberAccess memberAccess;
+
+        public SettingsBuilder withLocale(Locale locale) {
+            this.locale = locale;
             return this;
         }
 
-        public <T> Builder withMapper(Class<T> type, String name, Supplier<Mapper<T>> mapperSupplier) {
-            mapperConfig.add(mappers -> mappers.register(type, name, mapperSupplier.get()));
+        public SettingsBuilder withDecimalFormatSymbols(DecimalFormatSymbols decimalFormatSymbols) {
+            this.decimalFormatSymbols = decimalFormatSymbols;
+            return this;
+        }
+
+        public SettingsBuilder withMemberAccess(MemberAccess memberAccess) {
+            this.memberAccess = memberAccess;
+            return this;
+        }
+
+        public Settings build() {
+            // take a copy so the builder can be mutated and used again
+            Locale _locale = this.locale;
+            DecimalFormatSymbols _decimalFormatSymbols = this.decimalFormatSymbols;
+            MemberAccess _memberAccess = this.memberAccess;
+
+            return new Settings() {
+                @Override
+                public Locale getLocale() {
+                    return _locale;
+                }
+
+                @Override
+                public DecimalFormatSymbols getDecimalFormatSymbols() {
+                    return _decimalFormatSymbols;
+                }
+
+                @Override
+                public MemberAccess getMemberAccess() {
+                    return _memberAccess;
+                }
+            };
+        }
+    }
+    public static class Builder {
+        private final SettingsBuilder settingsBuilder = new SettingsBuilder();
+        private final List<BiConsumer<DefaultConverterRegistry, Settings>> converterConfig = new ArrayList<>();
+        private final List<BiConsumer<DefaultGlueRegistry, Settings>> glueConfig = new ArrayList<>();
+        private final List<BiConsumer<DefaultBinaryOperationsRegistry, Settings>> binaryOpsConfig = new ArrayList<>();
+        private final List<BiConsumer<DefaultMapperRegistry, Settings>> mapperConfig = new ArrayList<>();
+        private final List<BiConsumer<DefaultDirectiveParserRegistry, Settings>> directiveConfig = new ArrayList<>();
+        private TemplateLoader templateLoader;
+
+        public <T> Builder withMapper(Class<T> type, String name, Mapper<T> mapper) {
+            mapperConfig.add((registry, settings) -> registry.register(type, name, mapper));
+            return this;
+        }
+
+        public <T> Builder withMapper(Class<T> type, String name, Function<Settings, Mapper<T>> mapperSupplier) {
+            mapperConfig.add((registry, settings) -> registry.register(type, name, mapperSupplier.apply(settings)));
             return this;
         }
 
         public <F, T> Builder withConverter(Class<F> from, Class<T> to, Converter<F, T> converter) {
-            converterConfig.add(registry -> registry.register(from, to, converter));
+            converterConfig.add((registry, settings) -> registry.register(from, to, converter));
             return this;
         }
 
         public Builder withGlue(Class<?> type, Glue glue, int priority) {
-            glueConfig.add(registry -> registry.register(type, glue, priority));
+            glueConfig.add((registry, settings) -> registry.register(type, glue, priority));
+            return this;
+        }
+
+        public Builder withGlue(Class<?> type, Function<Settings, Glue> glueSupplier, int priority) {
+            glueConfig.add((registry, settings) -> registry.register(type, glueSupplier.apply(settings), priority));
             return this;
         }
 
@@ -64,22 +114,27 @@ public class Piper {
         }
 
         public <T> Builder withBinaryOperations(Class<T> type, BinaryOperations<T> binaryOps) {
-            binaryOpsConfig.add(registry -> registry.register(type, binaryOps));
+            binaryOpsConfig.add((registry, settings) -> registry.register(type, binaryOps));
             return this;
         }
 
         public Builder withLocale(Locale locale) {
-            this.locale.set(locale);
+            settingsBuilder.withLocale(locale);
             return this;
         }
 
         public Builder withDecimalFormatSymbols(DecimalFormatSymbols symbols) {
-            this.decimalFormatSymbols.set(symbols);
+            settingsBuilder.withDecimalFormatSymbols(symbols);
+            return this;
+        }
+
+        public Builder withMemberAccess(MemberAccess memberAccess) {
+            settingsBuilder.withMemberAccess(memberAccess);
             return this;
         }
 
         public Builder withDirectiveParser(DirectiveParser parser) {
-            directiveConfig.add(registry -> registry.register(parser));
+            directiveConfig.add((registry, settings) -> registry.register(parser));
             return this;
         }
 
@@ -87,15 +142,16 @@ public class Piper {
             return new Builder()
                 .withLocale(Locale.getDefault())
                 .withDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.getDefault()))
+                .withMemberAccess(new DefaultMemberAccess())
                 .withTemplateLoader(new ClasspathTemplateLoader(Thread.currentThread().getContextClassLoader()))
                 .withMapper(String.class, "uppercase", (v, args) -> v.toUpperCase())
-                .withMapper(TemporalAccessor.class, "format", () -> new DateTimeFormatMapper(locale.get()))
-                .withMapper(Number.class, "format", () -> new DecimalFormatMapper(decimalFormatSymbols.get()))
+                .withMapper(TemporalAccessor.class, "format", settings -> new DateTimeFormatMapper(settings.getLocale()))
+                .withMapper(Number.class, "format", settings -> new DecimalFormatMapper(settings.getDecimalFormatSymbols()))
                 .withConverter(Integer.class, Number.class, v -> v)
                 .withConverter(Double.class, Number.class, v -> v)
-                .withGlue(Object.class, new BeanGlue(), 0)
-                .withGlue(List.class, new ListGlue(), 1)
-                .withGlue(Map.class, new MapGlue(), 2)
+                .withGlue(Object.class, settings -> new BeanGlue(settings.getMemberAccess()), 0)
+                .withGlue(List.class, settings -> new ListGlue(settings.getMemberAccess()), 1)
+                .withGlue(Map.class, settings -> new MapGlue(settings.getMemberAccess()), 2)
                 .withBinaryOperations(String.class, new StringBinaryOperations())
                 .withBinaryOperations(Integer.class, new IntegerBinaryOperations())
                 .withBinaryOperations(Double.class, new DoubleBinaryOperations())
@@ -107,16 +163,17 @@ public class Piper {
 
         public Piper build() {
             if (templateLoader == null) throw new RuntimeException("templateLoader not configured");
+            Settings settings = settingsBuilder.build();
             DefaultMapperRegistry mappers = new DefaultMapperRegistry();
             DefaultConverterRegistry converters = new DefaultConverterRegistry();
             DefaultGlueRegistry glues = new DefaultGlueRegistry();
             DefaultBinaryOperationsRegistry binaryOps = new DefaultBinaryOperationsRegistry();
             DefaultDirectiveParserRegistry directives = new DefaultDirectiveParserRegistry();
-            mapperConfig.forEach(config -> config.accept(mappers));
-            converterConfig.forEach(config -> config.accept(converters));
-            glueConfig.forEach(config -> config.accept(glues));
-            binaryOpsConfig.forEach(config -> config.accept(binaryOps));
-            directiveConfig.forEach(config -> config.accept(directives));
+            mapperConfig.forEach(config -> config.accept(mappers, settings));
+            converterConfig.forEach(config -> config.accept(converters, settings));
+            glueConfig.forEach(config -> config.accept(glues, settings));
+            binaryOpsConfig.forEach(config -> config.accept(binaryOps, settings));
+            directiveConfig.forEach(config -> config.accept(directives, settings));
             return new Piper(templateLoader, mappers, converters, glues, binaryOps, directives);
         }
     }

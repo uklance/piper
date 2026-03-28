@@ -1,10 +1,7 @@
 package com.example.expression;
 
 import com.example.converter.DefaultConverterRegistry;
-import com.example.glue.BeanGlue;
-import com.example.glue.DefaultGlueRegistry;
-import com.example.glue.ListGlue;
-import com.example.glue.MapGlue;
+import com.example.glue.*;
 import com.example.mapper.DateTimeFormatMapper;
 import com.example.mapper.DecimalFormatMapper;
 import com.example.mapper.DefaultMapperRegistry;
@@ -17,7 +14,6 @@ import org.junit.jupiter.api.Test;
 
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.List;
 import java.util.Locale;
@@ -49,10 +45,11 @@ class ExpressionParserTest {
         converters.register(Integer.class, Number.class, v -> v);
         converters.register(Double.class, Number.class, v -> v);
 
+        MemberAccess memberAccess = new DefaultMemberAccess();
         DefaultGlueRegistry glueRegistry = new DefaultGlueRegistry();
-        glueRegistry.register(Object.class, new BeanGlue(), 0);
-        glueRegistry.register(List.class, new ListGlue(), 1);
-        glueRegistry.register(Map.class, new MapGlue(), 2);
+        glueRegistry.register(Object.class, new BeanGlue(memberAccess), 0);
+        glueRegistry.register(List.class, new ListGlue(memberAccess), 1);
+        glueRegistry.register(Map.class, new MapGlue(memberAccess), 2);
 
         DefaultBinaryOperationsRegistry binaryOpsRegistry = new DefaultBinaryOperationsRegistry();
         binaryOpsRegistry.register(String.class, new StringBinaryOperations());
