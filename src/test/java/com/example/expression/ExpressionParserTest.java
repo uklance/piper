@@ -22,8 +22,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ExpressionParserTest {
+    private ExpressionParser parser = new DefaultExpressionParser();
     private EvalContext context;
-    private final ExpressionParser parser = new ExpressionParser();
 
     @BeforeEach
     public void beforeEach() {
@@ -47,9 +47,9 @@ class ExpressionParserTest {
 
         MemberAccess memberAccess = new DefaultMemberAccess();
         DefaultGlueRegistry glueRegistry = new DefaultGlueRegistry();
-        glueRegistry.register(Object.class, new BeanGlue(memberAccess), 0);
-        glueRegistry.register(List.class, new ListGlue(memberAccess), 1);
-        glueRegistry.register(Map.class, new MapGlue(memberAccess), 2);
+        glueRegistry.register(Object.class, 0, new BeanGlue(memberAccess));
+        glueRegistry.register(List.class, 1, new ListGlue(memberAccess));
+        glueRegistry.register(Map.class, 2, new MapGlue(memberAccess));
 
         DefaultBinaryOperationsRegistry binaryOpsRegistry = new DefaultBinaryOperationsRegistry();
         binaryOpsRegistry.register(String.class, new StringBinaryOperations());
