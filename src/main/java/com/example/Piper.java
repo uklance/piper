@@ -3,6 +3,7 @@ package com.example;
 import com.example.converter.Converter;
 import com.example.converter.ConverterRegistry;
 import com.example.converter.DefaultConverterRegistry;
+import com.example.directive.*;
 import com.example.expression.DefaultEvalContext;
 import com.example.expression.EvalContext;
 import com.example.expression.ExpressionParser;
@@ -33,6 +34,7 @@ public class Piper {
         private final List<Consumer<DefaultGlueRegistry>> glueConfig = new ArrayList<>();
         private final List<Consumer<DefaultBinaryOperationsRegistry>> binaryOpsConfig = new ArrayList<>();
         private final List<Consumer<DefaultMapperRegistry>> mapperConfig = new ArrayList<>();
+        private final List<Consumer<DefaultDirectiveParserRegistry>> directiveConfig = new ArrayList<>();
         private TemplateLoader templateLoader;
 
         public <T> Builder withMapper(Class<T> type, String name, Mapper<T> mapper) {
@@ -75,6 +77,11 @@ public class Piper {
             return this;
         }
 
+        public Builder withDirectiveParser(DirectiveParser parser) {
+            directiveConfig.add(registry -> registry.register(parser));
+            return this;
+        }
+
         public Builder withDefaults() {
             return new Builder()
                 .withLocale(Locale.getDefault())
@@ -90,7 +97,11 @@ public class Piper {
                 .withGlue(Map.class, new MapGlue(), 2)
                 .withBinaryOperations(String.class, new StringBinaryOperations())
                 .withBinaryOperations(Integer.class, new IntegerBinaryOperations())
-                .withBinaryOperations(Double.class, new DoubleBinaryOperations());
+                .withBinaryOperations(Double.class, new DoubleBinaryOperations())
+                .withDirectiveParser(new IfDirectiveParser())
+                .withDirectiveParser(new IncludeDirectiveParser())
+                .withDirectiveParser(new AssignDirectiveParser())
+                .withDirectiveParser(new ListDirectiveParser());
         }
 
         public Piper build() {
@@ -99,11 +110,13 @@ public class Piper {
             DefaultConverterRegistry converters = new DefaultConverterRegistry();
             DefaultGlueRegistry glues = new DefaultGlueRegistry();
             DefaultBinaryOperationsRegistry binaryOps = new DefaultBinaryOperationsRegistry();
+            DefaultDirectiveParserRegistry directives = new DefaultDirectiveParserRegistry();
             mapperConfig.forEach(config -> config.accept(mappers));
             converterConfig.forEach(config -> config.accept(converters));
             glueConfig.forEach(config -> config.accept(glues));
             binaryOpsConfig.forEach(config -> config.accept(binaryOps));
-            return new Piper(templateLoader, mappers, converters, glues, binaryOps);
+            directiveConfig.forEach(config -> config.accept(directives));
+            return new Piper(templateLoader, mappers, converters, glues, binaryOps, directives);
         }
     }
 
@@ -119,8 +132,8 @@ public class Piper {
     private final TemplateParser templateParser;
     private final BinaryOperationRegistry binaryOpsRegistry;
 
-    public Piper(TemplateLoader templateLoader, MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, BinaryOperationRegistry binaryOpsRegistry) {
-        this.templateParser = new TemplateParser(expressionParser, templateLoader, this::createEvalContext);
+    public Piper(TemplateLoader templateLoader, MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, BinaryOperationRegistry binaryOpsRegistry, DirectiveParserRegistry directives) {
+        this.templateParser = new TemplateParser(expressionParser, templateLoader, this::createEvalContext, directives);
         this.mappers = mappers;
         this.converters = converters;
         this.glues = glues;
