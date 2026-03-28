@@ -1,9 +1,9 @@
 package com.example.directive;
 
 import com.example.expression.Expression;
-import com.example.template.Node;
+import com.example.template.TemplateNode;
 import com.example.template.TemplateLexer;
-import com.example.template.TokenType;
+import com.example.template.TemplateTokenType;
 
 import java.io.IOException;
 import java.util.List;
@@ -19,8 +19,8 @@ public class ListDirectiveParser implements DirectiveParser {
     }
 
     @Override
-    public Node parse(TemplateLexer lexer, String args, Context context) throws IOException {
-        lexer.next(TokenType.DIRECTIVE_START);
+    public TemplateNode parse(TemplateLexer lexer, String args, Context context) throws IOException {
+        lexer.next(TemplateTokenType.DIRECTIVE_START);
         Matcher matcher = LIST_PATTERN.matcher(args);
         if (!matcher.matches()) {
             throw new RuntimeException("Invalid list args: " + args);
@@ -29,14 +29,14 @@ public class ListDirectiveParser implements DirectiveParser {
         Expression listExpr = context.parseExpression(matcher.group(1));
         String varName = matcher.group(2);
 
-        List<Node> body = context.parseNodes(lexer, t -> context.isDirectiveEnd(t, "list"));
-        lexer.next(TokenType.DIRECTIVE_END);
+        List<TemplateNode> body = context.parseNodes(lexer, t -> context.isDirectiveEnd(t, "list"));
+        lexer.next(TemplateTokenType.DIRECTIVE_END);
 
         return (evalContext, sink) -> {
             Iterable<?> list = listExpr.eval(evalContext, Iterable.class);
             for (Object item : list) {
                 evalContext.setValue(varName, item);
-                for (Node n : body) {
+                for (TemplateNode n : body) {
                     n.render(evalContext, sink);
                 }
             }

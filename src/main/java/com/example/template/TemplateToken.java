@@ -1,10 +1,10 @@
 package com.example.template;
 
 public class TemplateToken {
-    public final TokenType type;
+    public final TemplateTokenType type;
     public final String text;
 
-    public TemplateToken(TokenType type, String text) {
+    public TemplateToken(TemplateTokenType type, String text) {
         this.type = type;
         this.text = text;
     }

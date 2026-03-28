@@ -1,6 +1,6 @@
 package com.example.template;
 
-public enum TokenType {
+public enum TemplateTokenType {
     TEXT,
     INTERPOLATION,
     DIRECTIVE_START,

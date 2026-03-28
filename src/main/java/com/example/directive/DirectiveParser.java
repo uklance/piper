@@ -1,7 +1,7 @@
 package com.example.directive;
 
 import com.example.expression.Expression;
-import com.example.template.Node;
+import com.example.template.TemplateNode;
 import com.example.template.Template;
 import com.example.template.TemplateLexer;
 import com.example.template.TemplateToken;
@@ -15,10 +15,10 @@ public interface DirectiveParser {
         boolean isDirectiveStart(TemplateToken token, String name);
         boolean isDirectiveEnd(TemplateToken token, String name);
         Expression parseExpression(String expr);
-        List<Node> parseNodes(TemplateLexer lexer, Predicate<TemplateToken> stopPredicate) throws IOException;
+        List<TemplateNode> parseNodes(TemplateLexer lexer, Predicate<TemplateToken> stopPredicate) throws IOException;
         Template loadTemplate(String path) throws IOException;
     }
 
     String getName();
-    Node parse(TemplateLexer lexer, String args, Context context) throws IOException;
+    TemplateNode parse(TemplateLexer lexer, String args, Context context) throws IOException;
 }

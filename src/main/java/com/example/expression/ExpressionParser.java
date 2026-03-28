@@ -8,26 +8,26 @@ import java.util.List;
 public class ExpressionParser {
 
     public Expression parse(String text) {
-        Lexer lexer = new Lexer(text);
-        Node node = parseExpression(lexer, 0);
+        ExpressionLexer lexer = new ExpressionLexer(text);
+        ExpressionNode node = parseExpression(lexer, 0);
         return new Expression(node);
     }
 
-    private Node parseExpression(Lexer lexer, int precedence) {
+    private ExpressionNode parseExpression(ExpressionLexer lexer, int precedence) {
 
-        Node left = parsePrefix(lexer);
+        ExpressionNode left = parsePrefix(lexer);
 
         while (precedence < precedence(lexer.peek().type)) {
-            Token op = lexer.next();
+            ExpressionToken op = lexer.next();
             left = parseInfix(lexer, left, op);
         }
 
         return left;
     }
 
-    private Node parsePrefix(Lexer lexer) {
+    private ExpressionNode parsePrefix(ExpressionLexer lexer) {
 
-        Token t = lexer.next();
+        ExpressionToken t = lexer.next();
 
         switch (t.type) {
 
@@ -57,8 +57,8 @@ public class ExpressionParser {
                 }
 
             case LPAREN: {
-                Node n = parseExpression(lexer, 0);
-                lexer.next(TokenType.RPAREN);
+                ExpressionNode n = parseExpression(lexer, 0);
+                lexer.next(ExpressionTokenType.RPAREN);
                 return n;
             }
 
@@ -67,14 +67,14 @@ public class ExpressionParser {
         }
     }
 
-    private Node parseInfix(Lexer lexer, Node left, Token op) {
+    private ExpressionNode parseInfix(ExpressionLexer lexer, ExpressionNode left, ExpressionToken op) {
 
         switch (op.type) {
             case PLUS:
             case MINUS:
             case STAR:
             case SLASH: {
-                Node right = parseExpression(lexer, precedence(op.type));
+                ExpressionNode right = parseExpression(lexer, precedence(op.type));
                 return ctx -> {
                     Object leftValue = left.eval(ctx);
                     BinaryOperations binaryOps = ctx.getBinaryOperations(leftValue.getClass());
@@ -95,37 +95,37 @@ public class ExpressionParser {
 
             case DOT: {
 
-                String name = lexer.next(TokenType.IDENTIFIER).text;
+                String name = lexer.next(ExpressionTokenType.IDENTIFIER).text;
 
-                if (lexer.peek().type == TokenType.LPAREN)
+                if (lexer.peek().type == ExpressionTokenType.LPAREN)
                     return parseMethodCall(lexer, left, name, false);
 
-                return new PropertyNode(left, name, false);
+                return new PropertyExpressionNode(left, name, false);
             }
 
             case SAFE_DOT: {
 
-                String name = lexer.next(TokenType.IDENTIFIER).text;
+                String name = lexer.next(ExpressionTokenType.IDENTIFIER).text;
 
-                if (lexer.peek().type == TokenType.LPAREN)
+                if (lexer.peek().type == ExpressionTokenType.LPAREN)
                     return parseMethodCall(lexer, left, name, true);
 
-                return new PropertyNode(left, name, true);
+                return new PropertyExpressionNode(left, name, true);
             }
 
             case QUESTION: {
 
-                Node t = parseExpression(lexer, 0);
-                lexer.next(TokenType.COLON);
-                Node f = parseExpression(lexer, 0);
+                ExpressionNode t = parseExpression(lexer, 0);
+                lexer.next(ExpressionTokenType.COLON);
+                ExpressionNode f = parseExpression(lexer, 0);
 
                 return ctx -> ctx.isTruthy(left.eval(ctx)) ? t.eval(ctx) : f.eval(ctx);
             }
 
             case LBRACKET: {
 
-                Node indexNode = parseExpression(lexer, 0);
-                lexer.next(TokenType.RBRACKET);
+                ExpressionNode indexNode = parseExpression(lexer, 0);
+                lexer.next(ExpressionTokenType.RBRACKET);
 
                 return ctx -> {
                     Object target = left.eval(ctx);
@@ -136,26 +136,26 @@ public class ExpressionParser {
 
             case PIPE: {
 
-                String name = lexer.next(TokenType.IDENTIFIER).text;
+                String name = lexer.next(ExpressionTokenType.IDENTIFIER).text;
 
-                List<Node> argNodes = new ArrayList<>();
+                List<ExpressionNode> argNodes = new ArrayList<>();
 
                 // check for method-like arguments
-                if (lexer.peek().type == TokenType.LPAREN) {
+                if (lexer.peek().type == ExpressionTokenType.LPAREN) {
                     lexer.next(); // consume '('
 
-                    if (lexer.peek().type != TokenType.RPAREN) {
+                    if (lexer.peek().type != ExpressionTokenType.RPAREN) {
                         // first argument
                         argNodes.add(parseExpression(lexer, 0));
 
                         // remaining arguments separated by commas
-                        while (lexer.peek().type == TokenType.COMMA) {
+                        while (lexer.peek().type == ExpressionTokenType.COMMA) {
                             lexer.next(); // consume ','
                             argNodes.add(parseExpression(lexer, 0));
                         }
                     }
 
-                    lexer.next(TokenType.RPAREN); // consume ')'
+                    lexer.next(ExpressionTokenType.RPAREN); // consume ')'
                 }
 
                 return ctx -> {
@@ -172,23 +172,23 @@ public class ExpressionParser {
         throw new RuntimeException("Unsupported operator " + op.type);
     }
 
-    private Node parseMethodCall(Lexer lexer, Node target, String name, boolean safe) {
+    private ExpressionNode parseMethodCall(ExpressionLexer lexer, ExpressionNode target, String name, boolean safe) {
 
-        lexer.next(TokenType.LPAREN);
+        lexer.next(ExpressionTokenType.LPAREN);
 
-        List<Node> args = new ArrayList<>();
+        List<ExpressionNode> args = new ArrayList<>();
 
-        if (lexer.peek().type != TokenType.RPAREN) {
+        if (lexer.peek().type != ExpressionTokenType.RPAREN) {
 
             args.add(parseExpression(lexer, 0));
 
-            while (lexer.peek().type == TokenType.COMMA) {
+            while (lexer.peek().type == ExpressionTokenType.COMMA) {
                 lexer.next();
                 args.add(parseExpression(lexer, 0));
             }
         }
 
-        lexer.next(TokenType.RPAREN);
+        lexer.next(ExpressionTokenType.RPAREN);
 
         return ctx -> {
 
@@ -212,7 +212,7 @@ public class ExpressionParser {
         };
     }
 
-    private int precedence(TokenType t) {
+    private int precedence(ExpressionTokenType t) {
 
         switch (t) {
             case PLUS:

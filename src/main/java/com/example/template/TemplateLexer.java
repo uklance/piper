@@ -28,7 +28,7 @@ public class TemplateLexer {
         return next;
     }
 
-    public TokenType peekType() {
+    public TemplateTokenType peekType() {
         return next.type;
     }
 
@@ -38,7 +38,7 @@ public class TemplateLexer {
         return t;
     }
 
-    public TemplateToken next(TokenType expected) {
+    public TemplateToken next(TemplateTokenType expected) {
         if (next.type != expected) {
             throw new RuntimeException("Expected " + expected + " but got " + next.type);
         }
@@ -51,7 +51,7 @@ public class TemplateLexer {
 
     private TemplateToken parseNext() {
         if (pos >= template.length()) {
-            return new TemplateToken(TokenType.EOF, "");
+            return new TemplateToken(TemplateTokenType.EOF, "");
         }
 
         // -------- INTERPOLATION --------
@@ -62,7 +62,7 @@ public class TemplateLexer {
 
             String expr = template.substring(start, end).trim();
             pos = end + 1;
-            return new TemplateToken(TokenType.INTERPOLATION, expr);
+            return new TemplateToken(TemplateTokenType.INTERPOLATION, expr);
         }
 
         // -------- DIRECTIVE START (<#...>) --------
@@ -73,7 +73,7 @@ public class TemplateLexer {
 
             String name = template.substring(start, end).trim();
             pos = end + 1;
-            return new TemplateToken(TokenType.DIRECTIVE_START, name);
+            return new TemplateToken(TemplateTokenType.DIRECTIVE_START, name);
         }
 
         // -------- DIRECTIVE END (</#...>) --------
@@ -84,7 +84,7 @@ public class TemplateLexer {
 
             String name = template.substring(start, end).trim();
             pos = end + 1;
-            return new TemplateToken(TokenType.DIRECTIVE_END, name);
+            return new TemplateToken(TemplateTokenType.DIRECTIVE_END, name);
         }
 
         // -------- TEXT --------
@@ -93,6 +93,6 @@ public class TemplateLexer {
             pos++;
         }
 
-        return new TemplateToken(TokenType.TEXT, template.substring(start, pos));
+        return new TemplateToken(TemplateTokenType.TEXT, template.substring(start, pos));
     }
 }

@@ -2,9 +2,9 @@ package com.example.expression;
 
 public class Expression {
 
-    private final Node root;
+    private final ExpressionNode root;
 
-    public Expression(Node root) {
+    public Expression(ExpressionNode root) {
         this.root = root;
     }
 

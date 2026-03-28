@@ -12,6 +12,7 @@ import com.example.loader.ClasspathTemplateLoader;
 import com.example.loader.TemplateLoader;
 import com.example.mapper.*;
 import com.example.operation.*;
+import com.example.template.DefaultTemplateParser;
 import com.example.template.Template;
 import com.example.template.TemplateParser;
 
@@ -133,7 +134,7 @@ public class Piper {
     private final BinaryOperationRegistry binaryOpsRegistry;
 
     public Piper(TemplateLoader templateLoader, MapperRegistry mappers, ConverterRegistry converters, GlueRegistry glues, BinaryOperationRegistry binaryOpsRegistry, DirectiveParserRegistry directives) {
-        this.templateParser = new TemplateParser(expressionParser, templateLoader, this::createEvalContext, directives);
+        this.templateParser = new DefaultTemplateParser(expressionParser, templateLoader, this::createEvalContext, directives);
         this.mappers = mappers;
         this.converters = converters;
         this.glues = glues;

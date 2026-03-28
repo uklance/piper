@@ -1,6 +1,6 @@
 package com.example.directive;
 
-import com.example.template.Node;
+import com.example.template.TemplateNode;
 import com.example.template.TemplateLexer;
 
 import java.io.IOException;
@@ -15,7 +15,7 @@ public class DefaultDirectiveParserRegistry implements DirectiveParserRegistry {
     }
 
     @Override
-    public Node parse(TemplateLexer lexer, String name, String args, DirectiveParser.Context context) throws IOException {
+    public TemplateNode parse(TemplateLexer lexer, String name, String args, DirectiveParser.Context context) throws IOException {
         DirectiveParser parser = parsers.get(name);
         if (parser == null) {
             throw new RuntimeException(String.format("No DirectiveParser registered for '%s'", name));

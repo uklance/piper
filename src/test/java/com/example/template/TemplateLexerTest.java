@@ -17,7 +17,7 @@ public class TemplateLexerTest {
         TemplateLexer lexer = new TemplateLexer(template);
         List<TemplateToken> tokens = new ArrayList<>();
         tokens.add(lexer.next());
-        while (tokens.getLast().type != TokenType.EOF) {
+        while (tokens.getLast().type != TemplateTokenType.EOF) {
             tokens.add(lexer.next());
         }
 

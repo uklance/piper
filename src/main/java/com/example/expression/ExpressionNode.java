@@ -1,5 +1,5 @@
 package com.example.expression;
 
-public interface Node {
+public interface ExpressionNode {
     Object eval(EvalContext ctx) throws Exception;
 }

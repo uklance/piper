@@ -1,6 +1,6 @@
 package com.example.expression;
 
-public enum TokenType {
+public enum ExpressionTokenType {
 
     NUMBER,
     STRING,
