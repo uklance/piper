@@ -1,6 +1,9 @@
 package com.example.converter;
 
-import java.util.*;
+import com.example.glue.MemberAccess;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -8,6 +11,11 @@ public class DefaultConverterRegistry implements ConverterRegistry {
     private record Key(Class<?> from, Class<?> to) {}
     private final Map<Key, Converter<?, ?>> converters = new HashMap<>();
     private final ConcurrentMap<Key, Converter<?, ?>> cache = new ConcurrentHashMap<>();
+    private final MemberAccess memberAccess;
+
+    public DefaultConverterRegistry(MemberAccess memberAccess) {
+        this.memberAccess = memberAccess;
+    }
 
     // Placeholder as ConcurrentHashMap does not support null
     private static final Converter<?, ?> NULL_CONVERTER = v -> {
@@ -39,24 +47,10 @@ public class DefaultConverterRegistry implements ConverterRegistry {
             return IDENTITY_CONVERTER;
         }
 
-        // breadth first search over class hierarchy & interfaces
-        Queue<Class<?>> queue = new ArrayDeque<>();
-        Set<Class<?>> visited = new LinkedHashSet<>();
-        queue.add(from);
-        while (!queue.isEmpty()) {
-            Class<?> current = queue.poll();
+        for (Class<?> current : memberAccess.getHierarchy(from)) {
             Converter<?, ?> converter = converters.get(new Key(current, to));
             if (converter != null) {
                 return converter;
-            }
-            Class<?> superclass = current.getSuperclass();
-            if (superclass != null && visited.add(superclass)) {
-                queue.add(superclass);
-            }
-            for (Class<?> iface : current.getInterfaces()) {
-                if (visited.add(iface)) {
-                    queue.add(iface);
-                }
             }
         }
 

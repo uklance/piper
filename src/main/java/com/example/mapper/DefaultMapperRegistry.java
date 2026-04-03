@@ -1,8 +1,16 @@
 package com.example.mapper;
 
+import com.example.glue.MemberAccess;
+
 import java.util.*;
 
 public class DefaultMapperRegistry implements MapperRegistry {
+    private final MemberAccess memberAccess;
+
+    public DefaultMapperRegistry(MemberAccess memberAccess) {
+        this.memberAccess = memberAccess;
+    }
+
     private final Map<Class<?>, Map<String, Mapper<?>>> registry = new HashMap<>();
 
     public <T> void register(Class<T> type, String name, Mapper<T> mapper) {
@@ -12,37 +20,16 @@ public class DefaultMapperRegistry implements MapperRegistry {
     }
 
     private Mapper<?> find(Class<?> type, String name) {
-        Deque<Class<?>> queue = new ArrayDeque<>();
-        Set<Class<?>> visited = new HashSet<>();
-
-        queue.add(type);
-
-        while (!queue.isEmpty()) {
-            Class<?> current = queue.poll();
-
-            Mapper<?> mapper = findDirect(current, name);
-            if (mapper != null) {
-                return mapper;
-            }
-
-            Class<?> superClass = current.getSuperclass();
-            if (superClass != null && visited.add(superClass)) {
-                queue.add(superClass);
-            }
-
-            for (Class<?> iface : current.getInterfaces()) {
-                if (visited.add(iface)) {
-                    queue.add(iface);
+        for (Class<?> current : memberAccess.getHierarchy(type)) {
+            Map<String, Mapper<?>> typeMappers = registry.get(current);
+            if (typeMappers != null) {
+                Mapper<?> mapper = typeMappers.get(name);
+                if (mapper != null) {
+                    return mapper;
                 }
             }
         }
         return null;
-    }
-
-    private Mapper<?> findDirect(Class<?> type, String name) {
-        Map<String, Mapper<?>> m = registry.get(type);
-        if (m == null) return null;
-        return m.get(name);
     }
 
     @Override

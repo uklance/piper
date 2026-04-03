@@ -114,12 +114,12 @@ public class PiperBuilder {
     public Piper build() {
         if (templateLoader == null) throw new RuntimeException("templateLoader not configured");
         DefaultSettings settings = new DefaultSettings();
-        DefaultMapperRegistry mappers = new DefaultMapperRegistry();
-        DefaultConverterRegistry converters = new DefaultConverterRegistry();
+        settingsConfig.forEach(config -> config.accept(settings));
+        DefaultMapperRegistry mappers = new DefaultMapperRegistry(settings.getMemberAccess());
+        DefaultConverterRegistry converters = new DefaultConverterRegistry(settings.getMemberAccess());
         DefaultGlueRegistry glues = new DefaultGlueRegistry();
         DefaultBinaryOperationsRegistry binaryOps = new DefaultBinaryOperationsRegistry();
         DefaultDirectiveParserRegistry directives = new DefaultDirectiveParserRegistry();
-        settingsConfig.forEach(config -> config.accept(settings));
         mapperConfig.forEach(config -> config.accept(mappers, settings));
         converterConfig.forEach(config -> config.accept(converters, settings));
         glueConfig.forEach(config -> config.accept(glues, settings));

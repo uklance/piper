@@ -1,13 +1,13 @@
 package com.example.glue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DefaultGlueRegistry implements GlueRegistry {
     private record Entry(Class<?> type, int priority, Glue<?> glue) {}
-    private final List<Entry> registered = new CopyOnWriteArrayList<>();
+    private final List<Entry> registered = new ArrayList<>();
     private final ConcurrentMap<Class<?>, Glue> cache = new ConcurrentHashMap<>();
 
     public void register(Class<?> type, int priority, Glue<?> glue) {

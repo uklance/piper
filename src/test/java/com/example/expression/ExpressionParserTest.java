@@ -36,16 +36,16 @@ class ExpressionParserTest {
         bean.list = List.of("A", "B", "C");
         bean.localDate = LocalDate.parse("2007-12-03");
 
-        DefaultMapperRegistry mappers = new DefaultMapperRegistry();
+        MemberAccess memberAccess = new DefaultMemberAccess();
+        DefaultMapperRegistry mappers = new DefaultMapperRegistry(memberAccess);
         mappers.register(String.class, "uppercase", (v, args) -> v.toUpperCase());
         mappers.register(TemporalAccessor.class, "format", new DateTimeFormatMapper(Locale.UK));
         mappers.register(Number.class, "format", new DecimalFormatMapper(DecimalFormatSymbols.getInstance(Locale.UK)));
 
-        DefaultConverterRegistry converters = new DefaultConverterRegistry();
+        DefaultConverterRegistry converters = new DefaultConverterRegistry(memberAccess);
         converters.register(Integer.class, Number.class, v -> v);
         converters.register(Double.class, Number.class, v -> v);
 
-        MemberAccess memberAccess = new DefaultMemberAccess();
         DefaultGlueRegistry glueRegistry = new DefaultGlueRegistry();
         glueRegistry.register(Object.class, 0, new BeanGlue(memberAccess));
         glueRegistry.register(List.class, 1, new ListGlue(memberAccess));

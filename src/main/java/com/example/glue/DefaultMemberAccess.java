@@ -1,9 +1,7 @@
 package com.example.glue;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -28,6 +26,54 @@ public class DefaultMemberAccess implements MemberAccess {
         return method.invoke(target, args);
     }
 
+    /**
+     * Bean-style property getter (getXXX / isXXX)
+     */
+    @Override
+    public Object getProperty(Object target, String name) throws Exception {
+        if (target == null) {
+            throw new IllegalArgumentException("Target cannot be null");
+        }
+
+        Class<?> type = target.getClass();
+        Method getter = getterCache.computeIfAbsent(
+                new GetterKey(type, name),
+                this::findGetter
+        );
+        return getter.invoke(target);
+    }
+
+    @Override
+    public Iterable<Class<?>> getHierarchy(Class<?> root) {
+        return () -> new Iterator<>() {
+            Queue<Class<?>> queue = new ArrayDeque<>(Collections.singletonList(root));
+            Set<Class<?>> visited = new LinkedHashSet<>(queue);
+
+            @Override
+            public boolean hasNext() {
+                return !queue.isEmpty();
+            }
+
+            @Override
+            public Class<?> next() {
+                if (queue.isEmpty()) {
+                    throw new NoSuchElementException();
+                }
+                Class<?> current = queue.poll();
+                Class<?> superclass = current.getSuperclass();
+                if (superclass != null && visited.add(superclass)) {
+                    queue.add(superclass);
+                }
+                for (Class<?> iface : current.getInterfaces()) {
+                    if (visited.add(iface)) {
+                        queue.add(iface);
+                    }
+                }
+                return current;
+            }
+        };
+    }
+
     private Method findMethod(MethodKey key) {
         List<Method> candidates = new ArrayList<>();
         for (Method method : key.type().getDeclaredMethods()) {
@@ -44,23 +90,6 @@ public class DefaultMemberAccess implements MemberAccess {
         Method method = candidates.getFirst();
         method.setAccessible(true);
         return method;
-    }
-
-    /**
-     * Bean-style property getter (getXXX / isXXX)
-     */
-    @Override
-    public Object getProperty(Object target, String name) throws Exception {
-        if (target == null) {
-            throw new IllegalArgumentException("Target cannot be null");
-        }
-
-        Class<?> type = target.getClass();
-        Method getter = getterCache.computeIfAbsent(
-                new GetterKey(type, name),
-                this::findGetter
-        );
-        return getter.invoke(target);
     }
 
     private Method findGetter(GetterKey key) {
