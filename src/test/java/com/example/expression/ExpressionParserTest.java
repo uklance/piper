@@ -112,6 +112,29 @@ class ExpressionParserTest {
         assertThat(eval("4 * 3 + 10")).isEqualTo(22);
         assertThat(eval("10 + 4 * 3")).isEqualTo(22);
         assertThat(eval("'a' + 'b'")).isEqualTo("ab");
+        assertThat(eval("[1,2,3]")).isEqualTo(List.of(1,2,3));
+        assertThat(eval("{a: 1, b: 2, c: 3}")).isEqualTo(Map.of("a", 1, "b", 2, "c", 3));
+        assertThat(eval("'foo' + \"bar\"")).isEqualTo("foobar");
+        assertThat(eval("1 == 1")).isEqualTo(true);
+        assertThat(eval("1 == 2")).isEqualTo(false);
+        assertThat(eval("1 < 2")).isEqualTo(true);
+        assertThat(eval("1 <= 2")).isEqualTo(true);
+        assertThat(eval("2 < 1")).isEqualTo(false);
+        assertThat(eval("2 <= 1")).isEqualTo(false);
+        assertThat(eval("1 lt 2")).isEqualTo(true);
+        assertThat(eval("1 lte 2")).isEqualTo(true);
+        assertThat(eval("2 lt 1")).isEqualTo(false);
+        assertThat(eval("2 lte 1")).isEqualTo(false);
+        assertThat(eval("1 > 2")).isEqualTo(false);
+        assertThat(eval("1 >= 2")).isEqualTo(false);
+        assertThat(eval("2 > 1")).isEqualTo(true);
+        assertThat(eval("2 >= 1")).isEqualTo(true);
+        assertThat(eval("1 gt 2")).isEqualTo(false);
+        assertThat(eval("1 gte 2")).isEqualTo(false);
+        assertThat(eval("2 gt 1")).isEqualTo(true);
+        assertThat(eval("2 gte 1")).isEqualTo(true);
+        assertThat(eval("11 % 5")).isEqualTo(1);
+        assertThat(eval("9 % 7")).isEqualTo(2);
     }
 
     Object eval(String expression) throws Exception {

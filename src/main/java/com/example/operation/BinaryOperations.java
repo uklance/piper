@@ -6,4 +6,7 @@ public interface BinaryOperations<T> {
     T minus(T left, T right);
     T multiply(T left, T right);
     T divide(T left, T right);
+    T mod(T left, T right);
+    boolean equals(T left, T right);
+    int compare(T left, T right);
 }

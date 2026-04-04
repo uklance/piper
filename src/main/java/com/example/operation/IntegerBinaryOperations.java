@@ -25,4 +25,19 @@ public class IntegerBinaryOperations implements BinaryOperations<Integer> {
     public Integer divide(Integer left, Integer right) {
         return left.intValue() / right.intValue();
     }
+
+    @Override
+    public Integer mod(Integer left, Integer right) {
+        return left % right;
+    }
+
+    @Override
+    public boolean equals(Integer left, Integer right) {
+        return left.equals(right);
+    }
+
+    @Override
+    public int compare(Integer left, Integer right) {
+        return left.compareTo(right);
+    }
 }

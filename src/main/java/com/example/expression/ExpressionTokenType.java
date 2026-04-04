@@ -13,9 +13,10 @@ public enum ExpressionTokenType {
 
     LPAREN,
     RPAREN,
-
     LBRACKET,
     RBRACKET,
+    LBRACE,
+    RBRACE,
 
     DOT,
     SAFE_DOT,
@@ -37,5 +38,7 @@ public enum ExpressionTokenType {
     AND,
     OR,
 
-    EOF
+    EOF,
+
+    MOD;
 }

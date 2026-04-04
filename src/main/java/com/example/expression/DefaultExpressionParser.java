@@ -2,8 +2,7 @@ package com.example.expression;
 
 import com.example.operation.BinaryOperations;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class DefaultExpressionParser implements ExpressionParser {
     public Expression parse(String text) {
@@ -59,82 +58,140 @@ public class DefaultExpressionParser implements ExpressionParser {
                 return n;
             }
 
+            case LBRACKET: {
+                List<ExpressionNode> elements = new ArrayList<>();
+
+                if (lexer.peek().type != ExpressionTokenType.RBRACKET) {
+                    elements.add(parseExpression(lexer, 0));
+
+                    while (lexer.peek().type == ExpressionTokenType.COMMA) {
+                        lexer.next();
+                        elements.add(parseExpression(lexer, 0));
+                    }
+                }
+
+                lexer.next(ExpressionTokenType.RBRACKET);
+
+                return ctx -> {
+                    List<Object> list = new ArrayList<>(elements.size());
+                    for (ExpressionNode e : elements) {
+                        list.add(e.eval(ctx));
+                    }
+                    return list;
+                };
+            }
+
+            case LBRACE: {
+                List<String> keys = new ArrayList<>();
+                List<ExpressionNode> valueNodes = new ArrayList<>();
+
+                if (lexer.peek().type != ExpressionTokenType.RBRACE) {
+
+                    do {
+                        ExpressionToken keyToken = lexer.next();
+
+                        if (keyToken.type != ExpressionTokenType.STRING &&
+                                keyToken.type != ExpressionTokenType.IDENTIFIER) {
+                            throw new RuntimeException("Invalid map key");
+                        }
+
+                        String key = keyToken.text;
+
+                        lexer.next(ExpressionTokenType.COLON);
+
+                        ExpressionNode value = parseExpression(lexer, 0);
+
+                        keys.add(key);
+                        valueNodes.add(value);
+
+                        if (lexer.peek().type != ExpressionTokenType.COMMA)
+                            break;
+
+                        lexer.next();
+
+                    } while (true);
+                }
+
+                lexer.next(ExpressionTokenType.RBRACE);
+
+                return ctx -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    for (int i = 0; i < keys.size(); i++) {
+                        map.put(keys.get(i), valueNodes.get(i).eval(ctx));
+                    }
+                    return map;
+                };
+            }
             default:
                 throw new RuntimeException("Unexpected " + t.type);
         }
     }
+    private interface BinaryFunction {
+        Object apply(BinaryOperations ops, Object left, Object right);
+    }
+    private final Map<ExpressionTokenType, BinaryFunction> BINARY_FUNCTIONS = Map.ofEntries(
+        Map.entry(ExpressionTokenType.PLUS, BinaryOperations::plus),
+        Map.entry(ExpressionTokenType.MINUS, BinaryOperations::minus),
+        Map.entry(ExpressionTokenType.STAR, BinaryOperations::multiply),
+        Map.entry(ExpressionTokenType.SLASH, BinaryOperations::divide),
+        Map.entry(ExpressionTokenType.MOD, BinaryOperations::mod),
+        Map.entry(ExpressionTokenType.EQ, (ops, l, r) -> ops.equals(l, r)),
+        Map.entry(ExpressionTokenType.NE, (ops, l, r) -> !ops.equals(l, r)),
+        Map.entry(ExpressionTokenType.LT, (ops, l, r) -> ops.compare(l, r) < 0),
+        Map.entry(ExpressionTokenType.GT, (ops, l, r) -> ops.compare(l, r) > 0),
+        Map.entry(ExpressionTokenType.LE, (ops, l, r) -> ops.compare(l, r) <= 0),
+        Map.entry(ExpressionTokenType.GE, (ops, l, r) -> ops.compare(l, r) >= 0)
+    );
 
-    private ExpressionNode parseInfix(ExpressionLexer lexer, ExpressionNode left, ExpressionToken op) {
+    private ExpressionNode parseInfix(ExpressionLexer lexer, ExpressionNode leftNode, ExpressionToken op) {
+        BinaryFunction binaryFunction = BINARY_FUNCTIONS.get(op.type);
+        if (binaryFunction != null) {
+            ExpressionNode rightNode = parseExpression(lexer, precedence(op.type));
+            return ctx -> {
+                Object left = leftNode.eval(ctx);
+                BinaryOperations binaryOps = ctx.getBinaryOperations(left.getClass());
+                Object right = ctx.convert(rightNode.eval(ctx), binaryOps.getType());
+                return binaryFunction.apply(binaryOps, left, right);
+            };
+        }
 
         switch (op.type) {
-            case PLUS:
-            case MINUS:
-            case STAR:
-            case SLASH: {
-                ExpressionNode right = parseExpression(lexer, precedence(op.type));
-                return ctx -> {
-                    Object leftValue = left.eval(ctx);
-                    BinaryOperations binaryOps = ctx.getBinaryOperations(leftValue.getClass());
-                    Object rightValue = ctx.convert(right.eval(ctx), binaryOps.getType());
-
-                    switch (op.type) {
-                        case PLUS:
-                            return binaryOps.plus(leftValue, rightValue);
-                        case MINUS:
-                            return binaryOps.minus(leftValue, rightValue);
-                        case STAR:
-                            return binaryOps.multiply(leftValue, rightValue);
-                        default:
-                            return binaryOps.divide(leftValue, rightValue);
-                    }
-                };
-            }
 
             case DOT: {
-
                 String name = lexer.next(ExpressionTokenType.IDENTIFIER).text;
-
-                if (lexer.peek().type == ExpressionTokenType.LPAREN)
-                    return parseMethodCall(lexer, left, name, false);
-
-                return new PropertyExpressionNode(left, name, false);
+                if (lexer.peek().type == ExpressionTokenType.LPAREN) {
+                    return parseMethodCall(lexer, leftNode, name, false);
+                }
+                return new PropertyExpressionNode(leftNode, name, false);
             }
 
             case SAFE_DOT: {
-
                 String name = lexer.next(ExpressionTokenType.IDENTIFIER).text;
-
-                if (lexer.peek().type == ExpressionTokenType.LPAREN)
-                    return parseMethodCall(lexer, left, name, true);
-
-                return new PropertyExpressionNode(left, name, true);
+                if (lexer.peek().type == ExpressionTokenType.LPAREN) {
+                    return parseMethodCall(lexer, leftNode, name, true);
+                }
+                return new PropertyExpressionNode(leftNode, name, true);
             }
 
             case QUESTION: {
-
                 ExpressionNode t = parseExpression(lexer, 0);
                 lexer.next(ExpressionTokenType.COLON);
                 ExpressionNode f = parseExpression(lexer, 0);
-
-                return ctx -> ctx.isTruthy(left.eval(ctx)) ? t.eval(ctx) : f.eval(ctx);
+                return ctx -> ctx.isTruthy(leftNode.eval(ctx)) ? t.eval(ctx) : f.eval(ctx);
             }
 
             case LBRACKET: {
-
                 ExpressionNode indexNode = parseExpression(lexer, 0);
                 lexer.next(ExpressionTokenType.RBRACKET);
-
                 return ctx -> {
-                    Object target = left.eval(ctx);
+                    Object target = leftNode.eval(ctx);
                     Integer index = ctx.convert(indexNode.eval(ctx), Integer.class);
                     return ctx.get(target, index);
                 };
             }
 
             case PIPE: {
-
                 String name = lexer.next(ExpressionTokenType.IDENTIFIER).text;
-
                 List<ExpressionNode> argNodes = new ArrayList<>();
 
                 // check for method-like arguments
@@ -151,7 +208,6 @@ public class DefaultExpressionParser implements ExpressionParser {
                             argNodes.add(parseExpression(lexer, 0));
                         }
                     }
-
                     lexer.next(ExpressionTokenType.RPAREN); // consume ')'
                 }
 
@@ -161,7 +217,7 @@ public class DefaultExpressionParser implements ExpressionParser {
                     for (int i = 0; i < argNodes.size(); ++i) {
                         args[i] = argNodes.get(i).eval(ctx);
                     }
-                    return ctx.applyMapper(left.eval(ctx), name, args);
+                    return ctx.applyMapper(leftNode.eval(ctx), name, args);
                 };
             }
         }
@@ -208,6 +264,7 @@ public class DefaultExpressionParser implements ExpressionParser {
                 return 10;
             case STAR:
             case SLASH:
+            case MOD:
                 return 20;
             case DOT:
             case SAFE_DOT:
@@ -218,9 +275,15 @@ public class DefaultExpressionParser implements ExpressionParser {
                 return 5;
             case QUESTION:
                 return 3;
+            case EQ:
+            case NE:
+            case LT:
+            case GT:
+            case LE:
+            case GE:
+                return 7;
         }
 
         return 0;
     }
-
 }

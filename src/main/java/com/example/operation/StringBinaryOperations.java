@@ -25,4 +25,19 @@ public class StringBinaryOperations implements BinaryOperations<String> {
     public String divide(String left, String right) {
         throw new UnsupportedOperationException("divide(String, String)");
     }
+
+    @Override
+    public String mod(String left, String right) {
+        throw new UnsupportedOperationException("mod(String, String)");
+    }
+
+    @Override
+    public boolean equals(String left, String right) {
+        return left.equals(right);
+    }
+
+    @Override
+    public int compare(String left, String right) {
+        return left.compareTo(right);
+    }
 }

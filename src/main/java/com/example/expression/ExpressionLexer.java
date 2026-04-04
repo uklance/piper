@@ -8,34 +8,6 @@ public class ExpressionLexer {
     private final String input;
     private int pos;
 
-    private static final Map<String, ExpressionTokenType> SYMBOLS = new HashMap<>();
-
-    static {
-
-        SYMBOLS.put("+", ExpressionTokenType.PLUS);
-        SYMBOLS.put("-", ExpressionTokenType.MINUS);
-        SYMBOLS.put("*", ExpressionTokenType.STAR);
-        SYMBOLS.put("/", ExpressionTokenType.SLASH);
-        SYMBOLS.put("(", ExpressionTokenType.LPAREN);
-        SYMBOLS.put(")", ExpressionTokenType.RPAREN);
-        SYMBOLS.put(".", ExpressionTokenType.DOT);
-        SYMBOLS.put(",", ExpressionTokenType.COMMA);
-        SYMBOLS.put("?", ExpressionTokenType.QUESTION);
-        SYMBOLS.put(":", ExpressionTokenType.COLON);
-        SYMBOLS.put("|", ExpressionTokenType.PIPE);
-        SYMBOLS.put("[", ExpressionTokenType.LBRACKET);
-        SYMBOLS.put("]", ExpressionTokenType.RBRACKET);
-        SYMBOLS.put("&&", ExpressionTokenType.AND);
-        SYMBOLS.put("||", ExpressionTokenType.OR);
-        SYMBOLS.put("==", ExpressionTokenType.EQ);
-        SYMBOLS.put("!=", ExpressionTokenType.NE);
-        SYMBOLS.put("<", ExpressionTokenType.LT);
-        SYMBOLS.put(">", ExpressionTokenType.GT);
-        SYMBOLS.put("<=", ExpressionTokenType.LE);
-        SYMBOLS.put(">=", ExpressionTokenType.GE);
-        SYMBOLS.put("?.", ExpressionTokenType.SAFE_DOT);
-    }
-
     public ExpressionLexer(String input) {
         this.input = input;
     }
@@ -59,7 +31,7 @@ public class ExpressionLexer {
         if (Character.isDigit(c))
             return number();
 
-        if (c == '\'')
+        if (c == '\'' || c == '"')
             return string();
 
         if (Character.isLetter(c) || c == '_')
@@ -96,52 +68,128 @@ public class ExpressionLexer {
 
     private ExpressionToken string() {
 
-        pos++;
+        char quote = input.charAt(pos++); // ' or "
 
-        int start = pos;
+        StringBuilder sb = new StringBuilder();
 
-        while (input.charAt(pos) != '\'')
-            pos++;
+        while (pos < input.length()) {
+            char c = input.charAt(pos++);
 
-        String s = input.substring(start, pos);
+            if (c == quote)
+                break;
 
-        pos++;
-
-        return new ExpressionToken(ExpressionTokenType.STRING, s);
-    }
-
-    private ExpressionToken identifier() {
-
-        int start = pos;
-
-        while (pos < input.length() &&
-                (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '_'))
-            pos++;
-
-        return new ExpressionToken(ExpressionTokenType.IDENTIFIER, input.substring(start, pos));
-    }
-
-    private ExpressionToken symbol() {
-
-        if (pos + 1 < input.length()) {
-
-            String two = input.substring(pos, pos + 2);
-
-            if (SYMBOLS.containsKey(two)) {
-                pos += 2;
-                return new ExpressionToken(SYMBOLS.get(two), two);
+            if (c == '\\') { // escape support
+                char next = input.charAt(pos++);
+                switch (next) {
+                    case 'n': sb.append('\n'); break;
+                    case 't': sb.append('\t'); break;
+                    case '"': sb.append('"'); break;
+                    case '\'': sb.append('\''); break;
+                    case '\\': sb.append('\\'); break;
+                    default: sb.append(next);
+                }
+            } else {
+                sb.append(c);
             }
         }
 
-        String one = input.substring(pos, pos + 1);
+        return new ExpressionToken(ExpressionTokenType.STRING, sb.toString());
+    }
 
-        pos++;
+    private ExpressionToken identifier() {
+        int start = pos;
+        while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '_')) {
+            pos++;
+        }
 
-        ExpressionTokenType t = SYMBOLS.get(one);
+        String text = input.substring(start, pos);
+        switch (text) {
+            case "gt": return token(ExpressionTokenType.GT, text);
+            case "lt": return token(ExpressionTokenType.LT, text);
+            case "gte": return token(ExpressionTokenType.GE, text);
+            case "lte": return token(ExpressionTokenType.LE, text);
+        }
 
-        if (t == null)
-            throw new RuntimeException("Unknown symbol " + one);
+        return new ExpressionToken(ExpressionTokenType.IDENTIFIER, text);
+    }
 
-        return new ExpressionToken(t, one);
+    private ExpressionToken symbol() {
+        char c = input.charAt(pos);
+
+        switch (c) {
+            case '+': pos++; return token(ExpressionTokenType.PLUS, "+");
+            case '-': pos++; return token(ExpressionTokenType.MINUS, "-");
+            case '*': pos++; return token(ExpressionTokenType.STAR, "*");
+            case '/': pos++; return token(ExpressionTokenType.SLASH, "/");
+            case '%': pos++; return token(ExpressionTokenType.MOD, "%");
+            case '(': pos++; return token(ExpressionTokenType.LPAREN, "(");
+            case ')': pos++; return token(ExpressionTokenType.RPAREN, ")");
+            case '[': pos++; return token(ExpressionTokenType.LBRACKET, "[");
+            case ']': pos++; return token(ExpressionTokenType.RBRACKET, "]");
+            case '{': pos++; return token(ExpressionTokenType.LBRACE, "{");
+            case '}': pos++; return token(ExpressionTokenType.RBRACE, "}");
+            case ',': pos++; return token(ExpressionTokenType.COMMA, ",");
+            case ':': pos++; return token(ExpressionTokenType.COLON, ":");
+            case '.': pos++; return token(ExpressionTokenType.DOT, ".");
+            case '?':
+                if (peekChar('.')) {
+                    pos += 2;
+                    return token(ExpressionTokenType.SAFE_DOT, "?.");
+                }
+                pos++;
+                return token(ExpressionTokenType.QUESTION, "?");
+
+            case '&':
+                expectNext('&');
+                return token(ExpressionTokenType.AND, "&&");
+
+            case '|':
+                if (peekChar('|')) {
+                    pos += 2;
+                    return token(ExpressionTokenType.OR, "||");
+                }
+                pos++;
+                return token(ExpressionTokenType.PIPE, "|");
+
+            case '=':
+                expectNext('=');
+                return token(ExpressionTokenType.EQ, "==");
+
+            case '!':
+                expectNext('=');
+                return token(ExpressionTokenType.NE, "!=");
+
+            case '>':
+                if (peekChar('=')) {
+                    pos += 2;
+                    return token(ExpressionTokenType.GE, ">=");
+                }
+                pos++;
+                return token(ExpressionTokenType.GT, ">");
+
+            case '<':
+                if (peekChar('=')) {
+                    pos += 2;
+                    return token(ExpressionTokenType.LE, "<=");
+                }
+                pos++;
+                return token(ExpressionTokenType.LT, "<");
+        }
+
+        throw new RuntimeException("Unknown symbol: " + c);
+    }
+
+    private boolean peekChar(char expected) {
+        return pos + 1 < input.length() && input.charAt(pos + 1) == expected;
+    }
+
+    private void expectNext(char expected) {
+        if (!peekChar(expected))
+            throw new RuntimeException("Expected '" + expected + "'");
+        pos += 2;
+    }
+
+    private ExpressionToken token(ExpressionTokenType type, String text) {
+        return new ExpressionToken(type, text);
     }
 }
